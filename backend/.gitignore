@@ -1,0 +1,6 @@
+# 로컬 SQLite DB
+*.db
+*.db-journal
+
+# 업로드 파일
+uploads/
