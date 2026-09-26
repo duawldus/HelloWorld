@@ -18,12 +18,13 @@
   - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀)
   - `(tabs)/_layout.js`: 하단 탭바 (홈/냉장고/레시피/생활알림)
   - `(tabs)/`: 탭바가 보이는 화면 (`index.js` 홈, `fridge.js` 냉장고, `recipe.js`, `alert.js`)
-  - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진 등록)
+  - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
-- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Icons.js` 아이콘)
+- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
 - `src/data/`: 앱 데이터
-  - `rules.js`: XP·레벨·뱃지 규칙 / `presets.js`: 재료 프리셋 / `dummyData.js`: 처음 시작 데이터
+  - `rules.js`: XP·레벨·뱃지·인식 신뢰도 기준 / `presets.js`: 재료 프리셋 / `dummyData.js`: 처음 시작 데이터
+  - `recognition.js`: 사진 속 재료 인식. 지금은 가짜 결과, 백엔드가 생기면 이 파일의 `API_URL`과 fetch 부분만 바꾼다
   - 더미 데이터를 바꾸면 `storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
   - `KEEP_DATES_FROM_TODAY = true`: 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용, 실제 서비스에선 false)
 

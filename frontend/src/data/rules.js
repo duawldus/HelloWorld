@@ -3,6 +3,9 @@
 // 유통기한이 며칠 이하로 남으면 '임박' 재료로 보는지
 export const EXPIRING_SOON_DAYS = 3
 
+// 사진 인식 신뢰도(%)가 이 값 미만이면 '확실하지 않아요'로 보고 처음엔 선택하지 않습니다.
+export const CONFIDENT_PERCENT = 70
+
 export const XP_RULES = {
   cook: 10, // 요리 완료
   expiringBonus: 10, // 유통기한 임박 재료를 써서 요리하면 추가

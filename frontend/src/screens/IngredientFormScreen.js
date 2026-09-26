@@ -2,7 +2,7 @@
 // - /ingredient/form            : 새 재료 직접 입력 (?name=고추 로 이름을 미리 채울 수 있음)
 // - /ingredient/form?id=재료id  : 방금 추가한 재료의 수량·유통기한 등 수정
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   addDays,
@@ -14,10 +14,9 @@ import {
   updateIngredient,
   STORAGE_TYPES,
 } from '../data'
+import { Chip, ExpiryPicker, Field, TextField } from '../components/FormFields'
 import { BackHeader, Screen } from '../components/Screen'
 import { colors } from '../theme/colors'
-
-const QUICK_DAYS = [3, 7, 14, 30]
 
 export default function IngredientFormScreen() {
   const params = useLocalSearchParams()
@@ -46,7 +45,6 @@ export default function IngredientFormScreen() {
 
   const quantityNumber = Number(quantity)
   const canSave = name.trim() && unit.trim() && quantityNumber > 0
-  const expiryDate = addDays(todayString(), daysLeft)
 
   const handleSave = async () => {
     if (!canSave) return
@@ -55,7 +53,7 @@ export default function IngredientFormScreen() {
       quantity: quantityNumber,
       unit: unit.trim(),
       storage,
-      expiryDate,
+      expiryDate: addDays(todayString(), daysLeft),
     }
     if (editId) {
       await updateIngredient(editId, values)
@@ -79,35 +77,25 @@ export default function IngredientFormScreen() {
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Field label="이름">
-          <TextInput
-            style={styles.input}
+          <TextField
             value={name}
             onChangeText={setName}
             placeholder="예) 고추"
-            placeholderTextColor={colors.textSub}
             autoFocus={!editId && !params.name}
           />
         </Field>
 
         <View style={styles.twoColumns}>
           <Field label="수량" style={styles.column}>
-            <TextInput
-              style={styles.input}
+            <TextField
               value={quantity}
               onChangeText={(text) => setQuantity(text.replace(/[^0-9.]/g, ''))}
               keyboardType="decimal-pad"
               placeholder="1"
-              placeholderTextColor={colors.textSub}
             />
           </Field>
           <Field label="단위" style={styles.column}>
-            <TextInput
-              style={styles.input}
-              value={unit}
-              onChangeText={setUnit}
-              placeholder="개, g, ml, 봉"
-              placeholderTextColor={colors.textSub}
-            />
+            <TextField value={unit} onChangeText={setUnit} placeholder="개, g, ml, 봉" />
           </Field>
         </View>
 
@@ -120,36 +108,7 @@ export default function IngredientFormScreen() {
         </Field>
 
         <Field label="유통기한">
-          <View style={styles.dateBox}>
-            <Pressable
-              style={styles.stepButton}
-              onPress={() => setDaysLeft(daysLeft - 1)}
-              accessibilityLabel="하루 앞당기기"
-            >
-              <Text style={styles.stepText}>−</Text>
-            </Pressable>
-            <View style={styles.dateInfo}>
-              <Text style={styles.dateText}>{formatDate(expiryDate)}</Text>
-              <Text style={styles.dateSub}>{formatDday(daysLeft)}</Text>
-            </View>
-            <Pressable
-              style={styles.stepButton}
-              onPress={() => setDaysLeft(daysLeft + 1)}
-              accessibilityLabel="하루 늦추기"
-            >
-              <Text style={styles.stepText}>+</Text>
-            </Pressable>
-          </View>
-          <View style={[styles.chips, styles.quickDays]}>
-            {QUICK_DAYS.map((days) => (
-              <Chip
-                key={days}
-                label={`${days}일`}
-                active={daysLeft === days}
-                onPress={() => setDaysLeft(days)}
-              />
-            ))}
-          </View>
+          <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} />
         </Field>
 
         <Pressable
@@ -170,58 +129,11 @@ export default function IngredientFormScreen() {
   )
 }
 
-function Field({ label, style, children }) {
-  return (
-    <View style={[styles.field, style]}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
-    </View>
-  )
-}
-
-function Chip({ label, active, onPress }) {
-  return (
-    <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-// '2026-10-03' → '2026년 10월 3일'
-function formatDate(dateString) {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return `${year}년 ${month}월 ${day}일`
-}
-
-function formatDday(daysLeft) {
-  if (daysLeft === 0) return '오늘까지'
-  return daysLeft > 0 ? `${daysLeft}일 남음 (D-${daysLeft})` : `${-daysLeft}일 지남`
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 40,
-  },
-  field: {
-    marginTop: 20,
-  },
-  label: {
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  input: {
-    height: 50,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
   },
   twoColumns: {
     flexDirection: 'row',
@@ -230,71 +142,9 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
   },
-
   chips: {
     flexDirection: 'row',
     gap: 8,
-  },
-  chip: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-  },
-  chipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSub,
-  },
-  chipTextActive: {
-    color: colors.textOnPrimary,
-  },
-
-  // 유통기한 −/+ 조절
-  dateBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-  },
-  stepButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: colors.primaryLight,
-  },
-  stepText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  dateInfo: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  dateSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: colors.textSub,
-  },
-  quickDays: {
-    marginTop: 10,
   },
 
   saveButton: {

@@ -24,7 +24,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "냉장고 속이나 장 봐온 재료를 촬영해 재료를 자동으로 등록하려고 카메라를 사용해요.",
+          "photosPermission": "앨범의 사진으로 재료를 등록하려고 사진에 접근해요.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "scheme": "bangguseok"
   }

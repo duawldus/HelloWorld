@@ -3,7 +3,7 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
 import { colors } from '../theme/colors'
 
-function Icon({ children, size = 24, color = colors.textSub }) {
+function Icon({ children, size = 24, color = colors.textSub, strokeWidth = 1.8 }) {
   return (
     <Svg
       width={size}
@@ -11,7 +11,7 @@ function Icon({ children, size = 24, color = colors.textSub }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
-      strokeWidth={1.8}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -96,6 +96,22 @@ export function CameraIcon(props) {
     <Icon size={22} color={colors.textOnPrimary} {...props}>
       <Path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
       <Circle cx="12" cy="13" r="3.5" />
+    </Icon>
+  )
+}
+
+export function SparkleIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Path d="M12 3.5 13.9 10l6.6 2-6.6 2L12 20.5 10.1 14l-6.6-2 6.6-2z" />
+    </Icon>
+  )
+}
+
+export function CheckIcon(props) {
+  return (
+    <Icon size={16} color={colors.primary} strokeWidth={2.2} {...props}>
+      <Path d="m5 12.5 4.5 4.5L19 7.5" />
     </Icon>
   )
 }

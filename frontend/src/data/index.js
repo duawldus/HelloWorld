@@ -14,6 +14,8 @@ export {
 
 export { completeCooking, completeChore, addIngredientsByPhoto } from './actions.js'
 
+export { recognizeIngredients } from './recognition.js'
+
 export { getProgress, getLevelInfo } from './progress.js'
 
 export { resetAllData } from './storage.js'
@@ -28,4 +30,4 @@ export {
 
 export { matchesName, todayString, addDays } from './utils.js'
 
-export { XP_RULES, LEVELS, BADGES, EXPIRING_SOON_DAYS } from './rules.js'
+export { XP_RULES, LEVELS, BADGES, EXPIRING_SOON_DAYS, CONFIDENT_PERCENT } from './rules.js'

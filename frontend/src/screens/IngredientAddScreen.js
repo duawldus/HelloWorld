@@ -2,24 +2,21 @@
 // - 자주 쓰는 재료를 탭하면 프리셋 유통기한으로 바로 등록되고, 아래에 3초간 알림이 뜹니다.
 // - 검색창에 입력하면 그리드 대신 프리셋 검색 결과가 나오고, 탭하면 똑같이 바로 등록됩니다.
 // - 목록에 없는 재료는 직접 입력 화면(/ingredient/form)에서 등록합니다.
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { addIngredient, findPreset, searchPresets, FREQUENT_INGREDIENTS } from '../data'
 import { CameraIcon, ImageIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
 import { SearchBar } from '../components/SearchBar'
+import { Toast, useToast } from '../components/Toast'
 import { colors } from '../theme/colors'
 
-const TOAST_MS = 3000
 const frequentPresets = FREQUENT_INGREDIENTS.map(findPreset).filter(Boolean)
 
 export default function IngredientAddScreen() {
   const [query, setQuery] = useState('')
-  const [toast, setToast] = useState(null) // 방금 추가한 재료
-  const toastTimer = useRef(null)
-
-  useEffect(() => () => clearTimeout(toastTimer.current), [])
+  const [toast, showToast, hideToast] = useToast()
 
   const isSearching = query.trim().length > 0
   const results = isSearching ? searchPresets(query) : []
@@ -27,15 +24,14 @@ export default function IngredientAddScreen() {
   // 같은 재료를 또 누르면 따로 한 개 더 등록됩니다.
   const handleAdd = async (preset) => {
     const added = await addIngredient({ name: preset.name })
-    clearTimeout(toastTimer.current)
-    setToast(added)
-    toastTimer.current = setTimeout(() => setToast(null), TOAST_MS)
-  }
-
-  const handleEdit = () => {
-    clearTimeout(toastTimer.current)
-    setToast(null)
-    router.push({ pathname: '/ingredient/form', params: { id: toast.id } })
+    showToast({
+      message: `${withSubject(added.name)} 냉장고에 추가됐어요`,
+      actionLabel: '수정',
+      onAction: () => {
+        hideToast()
+        router.push({ pathname: '/ingredient/form', params: { id: added.id } })
+      },
+    })
   }
 
   const openManualForm = () => {
@@ -108,17 +104,7 @@ export default function IngredientAddScreen() {
         </Pressable>
       </ScrollView>
 
-      {toast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText} numberOfLines={1}>
-            {withSubject(toast.name)} 냉장고에 추가됐어요
-          </Text>
-          <Text style={styles.toastDot}>·</Text>
-          <Pressable onPress={handleEdit} hitSlop={8}>
-            <Text style={styles.toastAction}>수정</Text>
-          </Pressable>
-        </View>
-      )}
+      <Toast toast={toast} />
     </Screen>
   )
 }
@@ -299,34 +285,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
-  },
-
-  // 아래에 3초간 뜨는 알림
-  toast: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: colors.toastBg,
-  },
-  toastText: {
-    flexShrink: 1,
-    fontSize: 14,
-    color: colors.textOnPrimary,
-  },
-  toastDot: {
-    fontSize: 14,
-    color: colors.textOnPrimary,
-  },
-  toastAction: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.toastAction,
   },
 })

@@ -107,6 +107,7 @@ export default function MyScreen() {
 | `addIngredient({ name: '두부' })` | 재료 추가 (프리셋 재료는 이름만 넣어도 자동 완성) |
 | `updateIngredient(id, { quantity: 3 })` | 재료 수정 |
 | `deleteIngredient(id)` | 재료 삭제 |
+| `recognizeIngredients(사진)` | 사진 속 재료 후보 `[{ name, quantity, unit, expiryDate, confidence }]` (지금은 가짜 결과) |
 | `addIngredientsByPhoto([{ name: '계란' }, ...])` | 사진으로 등록 (1개당 +5 XP) |
 | `isExpiringSoon(재료)` / `getDaysLeft(재료)` | 유통기한 임박 여부 / 남은 날 |
 | `searchPresets('파')` | 프리셋 재료 이름 검색 (초성 `'ㄷㅂ'`도 됨) |

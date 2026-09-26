@@ -1,7 +1,7 @@
 // 냉장고 화면 (와이어프레임 2번)
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import {
   getIngredients,
   getDaysLeft,
@@ -12,6 +12,7 @@ import {
 import { ChevronDownIcon, CloseIcon, ImageIcon, PlusIcon, SearchIcon } from '../components/Icons'
 import { PageTitle, Screen } from '../components/Screen'
 import { SearchBar } from '../components/SearchBar'
+import { Toast, useToast } from '../components/Toast'
 import { colors } from '../theme/colors'
 
 const FILTERS = ['전체', ...STORAGE_TYPES]
@@ -21,6 +22,15 @@ export default function FridgeScreen() {
   const [filter, setFilter] = useState('전체')
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
+  const [toast, showToast] = useToast()
+  const { photoAdded, xp } = useLocalSearchParams()
+
+  // 사진으로 등록하고 돌아왔을 때 (/fridge?photoAdded=3&xp=15)
+  useEffect(() => {
+    if (!photoAdded) return
+    showToast({ message: `재료 ${photoAdded}개를 등록했어요 · +${xp} XP` })
+    router.setParams({ photoAdded: undefined, xp: undefined }) // 다시 보일 때 또 뜨지 않게
+  }, [photoAdded, xp, showToast])
 
   const toggleSearch = () => {
     setSearching(!searching)
@@ -134,6 +144,8 @@ export default function FridgeScreen() {
         <PlusIcon />
         <Text style={styles.addButtonText}>재료 추가</Text>
       </Pressable>
+
+      <Toast toast={toast} style={styles.toast} />
     </Screen>
   )
 }
@@ -327,5 +339,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.textOnPrimary,
+  },
+  toast: {
+    bottom: 84, // '재료 추가' 버튼 위
   },
 })
