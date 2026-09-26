@@ -34,20 +34,35 @@ export default function PhotoAddScreen() {
     }
   }, [])
 
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync()
-    if (!permission.granted) {
-      setNotice({
-        message: '카메라 권한이 필요해요. 설정에서 허용하거나 앨범에서 사진을 골라 주세요.',
-        canOpenSettings: Platform.OS !== 'web' && !permission.canAskAgain,
-      })
-      return
-    }
-    analyze(await ImagePicker.launchCameraAsync(PICKER_OPTIONS))
-  }
+  // 촬영: 카메라 권한을 먼저 요청하고, 허용되면 카메라를 엽니다.
+  const takePhoto = () =>
+    openPicker({
+      requestPermission: ImagePicker.requestCameraPermissionsAsync,
+      launch: ImagePicker.launchCameraAsync,
+      deniedMessage: '설정에서 카메라를 허용해 주세요',
+    })
 
-  const pickFromAlbum = async () => {
-    analyze(await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS))
+  // 앨범: 사진 접근 권한을 먼저 요청하고, 허용되면 앨범을 엽니다.
+  const pickFromAlbum = () =>
+    openPicker({
+      requestPermission: ImagePicker.requestMediaLibraryPermissionsAsync,
+      launch: ImagePicker.launchImageLibraryAsync,
+      deniedMessage: '설정에서 사진 접근을 허용해 주세요',
+    })
+
+  const openPicker = async ({ requestPermission, launch, deniedMessage }) => {
+    setNotice(null)
+    try {
+      const permission = await requestPermission()
+      if (!permission.granted) {
+        setNotice({ message: deniedMessage, canOpenSettings: Platform.OS !== 'web' })
+        return
+      }
+      analyze(await launch(PICKER_OPTIONS))
+    } catch (error) {
+      // 오류가 조용히 묻히지 않게 화면에 보여 줍니다.
+      setNotice({ message: `카메라/앨범을 열지 못했어요: ${error?.message ?? error}` })
+    }
   }
 
   const analyze = async (result) => {
@@ -99,8 +114,8 @@ export default function PhotoAddScreen() {
           <View style={styles.notice}>
             <Text style={styles.noticeText}>{notice.message}</Text>
             {notice.canOpenSettings && (
-              <Pressable onPress={() => Linking.openSettings()} hitSlop={8}>
-                <Text style={styles.noticeLink}>설정 열기</Text>
+              <Pressable style={styles.settingsButton} onPress={() => Linking.openSettings()}>
+                <Text style={styles.settingsButtonText}>설정 열기</Text>
               </Pressable>
             )}
           </View>
@@ -223,7 +238,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.warning,
   },
-  noticeLink: {
+  settingsButton: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  settingsButtonText: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.primary,
