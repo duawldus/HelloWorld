@@ -1,4 +1,5 @@
 // 가짜 모드에서만 쓰는 규칙. 서버 모드에서는 백엔드가 계산합니다.
+// ✅ XP·레벨은 백엔드 기준으로 확정 (2026-09-26 팀장 결정). 프론트에서 따로 바꾸지 않습니다.
 // 값은 백엔드와 같게 맞춰 둡니다. 백엔드 값이 바뀌면 여기도 같이 고쳐 주세요.
 //   XP·레벨·뱃지 조건: backend/app/features/gamification/rules.py
 //   뱃지 목록:         backend/app/seeds/data.py 의 BADGES
