@@ -7,8 +7,12 @@ export {
   addIngredient,
   addIngredientsByPhoto,
   updateIngredient,
+  consumeIngredient,
   deleteIngredient,
 } from './ingredients.js'
+
+// 이 모드에서 '다 먹었어요'(소진)를 쓸 수 있는지
+export const CAN_CONSUME = true
 export { deductIngredients, completeCooking, completeChore } from './actions.js'
 export { getStats, getBadges, getXpLogs } from './gamification.js'
 export { recognizeIngredients } from './vision.js'

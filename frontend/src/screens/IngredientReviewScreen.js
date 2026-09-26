@@ -3,20 +3,11 @@
 //   주황색으로 보여 주고 처음엔 선택하지 않습니다. (기준: 백엔드 AI_LOW_CONFIDENCE, 지금은 80% 미만)
 // - 왼쪽 체크(+)만 누르면 선택/해제, 카드를 누르면 아래에서 수정 창이 올라옵니다.
 // - '재료 N개 등록하기' → 선택한 재료를 한 번에 저장(+XP)하고 냉장고 화면으로 이동합니다.
-import { useEffect, useRef, useState } from 'react'
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { addDays, addIngredientsByPhoto, daysUntil, todayString } from '../data'
+import { BottomSheet } from '../components/BottomSheet'
 import { ExpiryPicker, Field, TextField } from '../components/FormFields'
 import { CheckIcon, ImageIcon, PlusIcon, SparkleIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
@@ -192,21 +183,11 @@ function CandidateCard({ item, onToggle, onPress }) {
 
 // 아래에서 올라오는 수정 창. '확인'을 누르면 선택된 상태가 됩니다.
 function EditSheet({ item, onClose, onSave, onDelete }) {
-  const insets = useSafeAreaInsets()
-  const slide = useRef(new Animated.Value(1)).current
   const initialDays = daysUntil(item.expires_on)
   const [name, setName] = useState(item.name)
   const [quantity, setQuantity] = useState(String(item.quantity))
   const [unit, setUnit] = useState(item.unit)
   const [daysLeft, setDaysLeft] = useState(initialDays)
-
-  useEffect(() => {
-    Animated.timing(slide, {
-      toValue: 0,
-      duration: 220,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start()
-  }, [slide])
 
   const quantityNumber = Number(quantity)
   const canSave = name.trim() && unit.trim() && quantityNumber > 0
@@ -228,55 +209,42 @@ function EditSheet({ item, onClose, onSave, onDelete }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.sheetLayer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="수정 창 닫기" />
-      <Animated.View
-        style={[
-          styles.sheet,
-          { paddingBottom: 20 + insets.bottom },
-          { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 500] }) }] },
-        ]}
-      >
-        <View style={styles.sheetHandle} />
-        <Text style={styles.sheetTitle}>재료 확인</Text>
+    <BottomSheet onClose={onClose}>
+      <Text style={styles.sheetTitle}>재료 확인</Text>
 
-        <Field label="이름">
-          <TextField value={name} onChangeText={setName} placeholder="예) 대파" />
+      <Field label="이름">
+        <TextField value={name} onChangeText={setName} placeholder="예) 대파" />
+      </Field>
+      <View style={styles.twoColumns}>
+        <Field label="수량" style={styles.column}>
+          <TextField
+            value={quantity}
+            onChangeText={(text) => setQuantity(text.replace(/[^0-9.]/g, ''))}
+            keyboardType="decimal-pad"
+            placeholder="1"
+          />
         </Field>
-        <View style={styles.twoColumns}>
-          <Field label="수량" style={styles.column}>
-            <TextField
-              value={quantity}
-              onChangeText={(text) => setQuantity(text.replace(/[^0-9.]/g, ''))}
-              keyboardType="decimal-pad"
-              placeholder="1"
-            />
-          </Field>
-          <Field label="단위" style={styles.column}>
-            <TextField value={unit} onChangeText={setUnit} placeholder="개, g, ml, 봉" />
-          </Field>
-        </View>
-        <Field label="유통기한">
-          <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} minDays={0} />
+        <Field label="단위" style={styles.column}>
+          <TextField value={unit} onChangeText={setUnit} placeholder="개, g, ml, 봉" />
         </Field>
+      </View>
+      <Field label="유통기한">
+        <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} minDays={0} />
+      </Field>
 
-        <View style={styles.sheetButtons}>
-          <Pressable style={styles.deleteButton} onPress={onDelete}>
-            <Text style={styles.deleteText}>삭제</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.confirmButton, !canSave && styles.registerButtonDisabled]}
-            onPress={handleConfirm}
-            disabled={!canSave}
-          >
-            <Text style={styles.registerButtonText}>확인</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+      <View style={styles.sheetButtons}>
+        <Pressable style={styles.deleteButton} onPress={onDelete}>
+          <Text style={styles.deleteText}>삭제</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.confirmButton, !canSave && styles.registerButtonDisabled]}
+          onPress={handleConfirm}
+          disabled={!canSave}
+        >
+          <Text style={styles.registerButtonText}>확인</Text>
+        </Pressable>
+      </View>
+    </BottomSheet>
   )
 }
 
@@ -435,29 +403,7 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
   },
 
-  // 수정 창 (키보드가 올라오면 창도 같이 올라가도록 아래 정렬)
-  sheetLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.backdrop,
-  },
-  sheet: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: colors.screenBg,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-  },
+  // 수정 창
   sheetTitle: {
     marginTop: 14,
     fontSize: 18,

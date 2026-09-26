@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../theme/colors'
 
-const TOAST_MS = 3000
+export const TOAST_MS = 3000 // 알림이 떠 있는 시간
 
 export function useToast() {
   const [toast, setToast] = useState(null)

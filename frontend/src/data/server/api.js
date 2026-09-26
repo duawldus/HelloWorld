@@ -106,15 +106,18 @@ async function parse(response) {
   const data = await response.json().catch(() => null)
   if (response.ok) return data
 
-  if (response.status === 501) {
-    throw new ApiError('아직 서버에 준비되지 않은 기능이에요. (501)', 501, 'NOT_IMPLEMENTED')
-  }
+  if (response.status === 501) throw notReadyError()
   // 백엔드 에러: { code, message } 또는 FastAPI 형식 오류 { detail: [...] }
   const message =
     data?.message ??
     (Array.isArray(data?.detail) ? data.detail.map((d) => d.msg).join(', ') : data?.detail) ??
     `서버 오류가 났어요. (${response.status})`
   throw new ApiError(message, response.status, data?.code)
+}
+
+// 백엔드에 아직 없는(또는 501을 주는) 기능
+export function notReadyError() {
+  return new ApiError('아직 서버에 준비되지 않은 기능이에요. (501)', 501, 'NOT_IMPLEMENTED')
 }
 
 export class ApiError extends Error {

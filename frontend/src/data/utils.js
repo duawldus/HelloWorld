@@ -47,6 +47,14 @@ function parseDate(dateString) {
   return new Date(y, m - 1, d)
 }
 
+// ----- 조사 -----
+// 받침에 따라 조사 붙이기. withJosa('대파', '을', '를') → '대파를', withJosa('계란', '이', '가') → '계란이'
+export function withJosa(word, withBatchim, withoutBatchim) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00
+  if (code < 0 || code >= 11172) return `${word}${withBatchim}(${withoutBatchim})`
+  return `${word}${code % 28 === 0 ? withoutBatchim : withBatchim}`
+}
+
 // ----- 이름 검색 -----
 // 띄어쓰기·대소문자 무시, 초성으로도 찾기. 예) matchesName('돼지고기', 'ㄷㅈ') → true
 export function matchesName(name, query) {

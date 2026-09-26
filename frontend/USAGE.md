@@ -188,7 +188,9 @@ export default function MyScreen() {
 | `addIngredient({ name: '두부' })` | 재료 추가 (프리셋 재료는 이름만 넣어도 수량·보관·유통기한 자동) |
 | `addIngredient({ name: '두부', preset_id: 2 }, 'PRESET')` | 두 번째 값은 등록 경로: `'PRESET'`(아이콘 탭) · `'MANUAL'`(기본) |
 | `updateIngredient(id, { quantity: 3 })` | 재료 수정 (`name`, `quantity`, `unit`, `storage`, `expires_on`) |
-| `deleteIngredient(id)` | 재료 삭제 |
+| `consumeIngredient(id)` | 다 먹었어요 → '소진'으로 냉장고에서 빼기 (XP·통계 없음). 서버 모드는 백엔드 API가 생기기 전까지 에러 (`CAN_CONSUME`이 `false`) |
+| `deleteIngredient(id)` | 버렸어요 → '폐기'로 냉장고에서 빼기 |
+| `withJosa('대파', '을', '를')` | 받침에 맞게 조사 붙이기 → `'대파를'` |
 | `recognizeIngredients(사진)` | 사진 속 재료 후보 `{ count, items: [{ name, preset_id, quantity, unit, storage, expires_on, confidence(0~1), needs_review }] }` |
 | `addIngredientsByPhoto([...])` | 사진으로 인식한 재료 한 번에 등록 → `{ items, xp }` (+15 XP) |
 | `daysUntil('2026-09-30')` | 오늘부터 그 날짜까지 남은 날 |

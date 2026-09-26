@@ -19,7 +19,9 @@ export const getIngredient = (...args) => impl.getIngredient(...args)
 export const addIngredient = (...args) => impl.addIngredient(...args)
 export const addIngredientsByPhoto = (...args) => impl.addIngredientsByPhoto(...args)
 export const updateIngredient = (...args) => impl.updateIngredient(...args)
-export const deleteIngredient = (...args) => impl.deleteIngredient(...args)
+export const consumeIngredient = (...args) => impl.consumeIngredient(...args) // 다 먹었어요 (소진)
+export const deleteIngredient = (...args) => impl.deleteIngredient(...args) // 버렸어요 (폐기)
+export const CAN_CONSUME = impl.CAN_CONSUME // 서버 모드는 백엔드 소진 API가 생기기 전까지 false
 export const deductIngredients = (...args) => impl.deductIngredients(...args)
 
 // XP 를 얻는 행동
@@ -45,4 +47,5 @@ export {
   todayString,
   addDays,
   daysUntil,
+  withJosa,
 } from './utils.js'

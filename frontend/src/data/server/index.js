@@ -1,6 +1,6 @@
 // 서버 모드: 백엔드 API(backend/README.md, Swagger /docs)를 호출하는 구현.
 // mock/index.js 와 똑같은 이름·모양의 함수를 내보냅니다. 돌려주는 값은 백엔드 응답 그대로입니다.
-import { clearToken, imageFormData, request } from './api.js'
+import { clearToken, imageFormData, notReadyError, request } from './api.js'
 
 // ----- 재료 -----
 
@@ -34,7 +34,15 @@ export function updateIngredient(id, changes) {
   return request(`/ingredients/${id}`, { method: 'PATCH', body: changes })
 }
 
-// DELETE /ingredients/{id}
+// '다 먹었어요'(소진). ⚠️ 백엔드에 아직 API가 없음 → 요청서 frontend/BACKEND_REQUESTS.md
+// 백엔드가 만들면 아래 한 줄로 바꾸고 CAN_CONSUME 을 true 로 바꾸세요.
+//   return request(`/ingredients/${id}/consume`, { method: 'POST' })
+export const CAN_CONSUME = false
+export async function consumeIngredient() {
+  throw notReadyError()
+}
+
+// DELETE /ingredients/{id} → 백엔드에서 '폐기(DISCARDED)'로 표시
 export function deleteIngredient(id) {
   return request(`/ingredients/${id}`, { method: 'DELETE' })
 }

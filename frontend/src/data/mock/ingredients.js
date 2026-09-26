@@ -61,6 +61,16 @@ export async function updateIngredient(id, changes) {
   return toRead(updated.find((item) => item.id === id))
 }
 
+// 재료를 다 먹었을 때: '소진'으로 표시하고 냉장고에서 뺍니다. (XP·통계 없음)
+// 백엔드에 요청한 POST /ingredients/{id}/consume 과 같게 동작 (frontend/BACKEND_REQUESTS.md)
+export async function consumeIngredient(id) {
+  const ingredients = await loadIngredients()
+  findActive(ingredients, id)
+  await saveIngredients(
+    ingredients.map((item) => (item.id === id ? { ...item, status: 'CONSUMED' } : item)),
+  )
+}
+
 // DELETE /ingredients/{id} (백엔드처럼 지우지 않고 '폐기' 표시)
 export async function deleteIngredient(id) {
   const ingredients = await loadIngredients()

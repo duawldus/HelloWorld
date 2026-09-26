@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
-import { addIngredient, getPresets, matchesName, storageLabel } from '../data'
+import { addIngredient, getPresets, matchesName, storageLabel, withJosa } from '../data'
 import { CameraIcon, ImageIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
 import { SearchBar } from '../components/SearchBar'
@@ -40,7 +40,7 @@ export default function IngredientAddScreen() {
       return
     }
     showToast({
-      message: `${withSubject(added.name)} 냉장고에 추가됐어요`,
+      message: `${withJosa(added.name, '이', '가')} 냉장고에 추가됐어요`,
       actionLabel: '수정',
       onAction: () => {
         hideToast()
@@ -145,13 +145,6 @@ function PresetRow({ preset, onPress }) {
 // 프리셋 기본 유통기한(일). 불러오기 전에는 fallback
 function shelfDays(presets, name, fallback) {
   return presets.find((preset) => preset.name === name)?.shelf_life_days ?? fallback
-}
-
-// 받침에 따라 '계란이' / '두부가'
-function withSubject(name) {
-  const code = name.charCodeAt(name.length - 1) - 0xac00
-  if (code < 0 || code >= 11172) return `${name}이(가)`
-  return code % 28 === 0 ? `${name}가` : `${name}이`
 }
 
 const styles = StyleSheet.create({
