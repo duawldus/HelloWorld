@@ -1,20 +1,16 @@
-// ⭐ 데이터 저장/불러오기는 이 파일에서만 합니다.
-// 지금은 폰(또는 브라우저) 안의 AsyncStorage 에 저장하고,
-// 나중에 백엔드가 생기면 이 파일의 함수 안쪽만 API 호출(fetch)로 바꾸면 됩니다.
-//   예) loadIngredients → return (await fetch(`${API_URL}/ingredients`)).json()
-// 함수가 모두 async 라서, 바꾼 뒤에도 쓰는 쪽 코드는 그대로입니다.
+// ⭐ 가짜 모드의 저장/불러오기는 이 파일에서만 합니다.
+// 폰(또는 브라우저) 안의 AsyncStorage 에 저장합니다. 서버 모드에서는 쓰지 않습니다.
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createDummyIngredients, createDummyProgress } from './dummyData.js'
-import { addDays, daysBetween, todayString } from './utils.js'
+import { addDays, daysBetween, todayString } from '../utils.js'
 
-// 더미 데이터(dummyData.js)를 바꾸면 이 숫자를 1 올리세요.
+// 더미 데이터(dummyData.js)나 저장 모양을 바꾸면 이 숫자를 1 올리세요.
 // 예전 버전이 저장된 기기는 앱을 켤 때 새 더미 데이터로 초기화됩니다.
-const DATA_VERSION = 3
+const DATA_VERSION = 4
 
 // true 면 날짜를 '오늘' 기준으로 유지합니다. (발표·테스트용)
-// 저장된 유통기한·등록일·연속 기록 날짜를 지난 날짜만큼 뒤로 옮겨서,
+// 저장된 유통기한·연속 기록·XP 기록 날짜를 지난 날짜만큼 뒤로 옮겨서,
 // 며칠 뒤에 켜도 D-day 와 연속 기록이 처음과 똑같이 보입니다.
-// 실제 서비스(백엔드 연결)에서는 false 로 바꾸세요.
 const KEEP_DATES_FROM_TODAY = true
 
 const KEYS = {
@@ -33,7 +29,7 @@ export async function saveIngredients(ingredients) {
   await write(KEYS.ingredients, ingredients)
 }
 
-// XP·연속 기록·통계·XP 기록
+// XP·연속 기록·행동 횟수·뱃지·XP 기록
 export async function loadProgress() {
   await ensurePrepared()
   return readOrCreate(KEYS.progress, createDummyProgress)
@@ -48,6 +44,11 @@ export async function resetAllData() {
   await write(KEYS.ingredients, createDummyIngredients())
   await write(KEYS.progress, createDummyProgress())
   await write(KEYS.meta, { version: DATA_VERSION, baseDate: todayString() })
+}
+
+// 목록에서 다음 숫자 id (서버처럼 1, 2, 3 ...)
+export function nextId(list) {
+  return list.reduce((max, item) => Math.max(max, item.id), 0) + 1
 }
 
 // 여러 화면이 동시에 불러와도 준비 작업은 한 번만 돌도록 묶어 둡니다.
@@ -73,11 +74,7 @@ async function prepareData() {
   if (ingredients) {
     await write(
       KEYS.ingredients,
-      ingredients.map((item) => ({
-        ...item,
-        expiryDate: addDays(item.expiryDate, days),
-        registeredDate: addDays(item.registeredDate, days),
-      })),
+      ingredients.map((item) => ({ ...item, expires_on: addDays(item.expires_on, days) })),
     )
   }
   const progress = await read(KEYS.progress)
@@ -85,7 +82,10 @@ async function prepareData() {
     await write(KEYS.progress, {
       ...progress,
       streak: { ...progress.streak, lastXpDate: addDays(progress.streak.lastXpDate, days) },
-      history: progress.history.map((entry) => ({ ...entry, date: shiftTime(entry.date, days) })),
+      logs: progress.logs.map((log) => ({ ...log, created_at: shiftTime(log.created_at, days) })),
+      badges: Object.fromEntries(
+        Object.entries(progress.badges).map(([code, at]) => [code, shiftTime(at, days)]),
+      ),
     })
   }
   await write(KEYS.meta, { ...meta, baseDate: today })

@@ -24,6 +24,7 @@ export const colors = {
   // 테두리
   border: '#dfe2ec',
   phoneFrame: '#cfd2de', // 웹에서 휴대폰 틀 테두리
+  phoneFrameShadow: 'rgba(28, 29, 43, 0.12)', // 웹에서 휴대폰 틀 그림자
 
   // 경고 (AI 인식 신뢰도 낮음 등)
   warning: '#ee8a1c',

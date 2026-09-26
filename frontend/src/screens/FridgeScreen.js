@@ -2,24 +2,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import {
-  getIngredients,
-  getDaysLeft,
-  matchesName,
-  STORAGE_TYPES,
-  EXPIRING_SOON_DAYS,
-} from '../data'
+import { getIngredients, matchesName, storageLabel, STORAGE_TYPES } from '../data'
 import { ChevronDownIcon, CloseIcon, ImageIcon, PlusIcon, SearchIcon } from '../components/Icons'
 import { PageTitle, Screen } from '../components/Screen'
 import { SearchBar } from '../components/SearchBar'
 import { Toast, useToast } from '../components/Toast'
 import { colors } from '../theme/colors'
 
-const FILTERS = ['전체', ...STORAGE_TYPES]
+const ALL = 'ALL'
+const FILTERS = [ALL, ...STORAGE_TYPES]
+const EMPTY_FRIDGE = { total: 0, imminent_count: 0, storage_counts: {}, items: [] }
 
 export default function FridgeScreen() {
-  const [ingredients, setIngredients] = useState([])
-  const [filter, setFilter] = useState('전체')
+  const [fridge, setFridge] = useState(EMPTY_FRIDGE)
+  const [loadError, setLoadError] = useState(null)
+  const [filter, setFilter] = useState(ALL)
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const [toast, showToast] = useToast()
@@ -40,22 +37,24 @@ export default function FridgeScreen() {
   // 이 화면이 보일 때마다 재료를 다시 불러옵니다 (재료 추가 후 돌아왔을 때 등)
   useFocusEffect(
     useCallback(() => {
-      getIngredients().then(setIngredients)
+      getIngredients()
+        .then((data) => {
+          setFridge(data)
+          setLoadError(null)
+        })
+        .catch((error) => setLoadError(error.message))
     }, []),
   )
 
-  const sorted = ingredients
-    .map((item) => ({ ...item, daysLeft: getDaysLeft(item) }))
-    .sort((a, b) => a.daysLeft - b.daysLeft)
-  const shown = sorted.filter(
-    (item) => (filter === '전체' || item.storage === filter) && matchesName(item.name, query),
+  // items 는 이미 유통기한 임박순. is_imminent = D-3 이하
+  const shown = fridge.items.filter(
+    (item) => (filter === ALL || item.storage === filter) && matchesName(item.name, query),
   )
-  const urgent = shown.filter((item) => item.daysLeft <= EXPIRING_SOON_DAYS)
-  const relaxed = shown.filter((item) => item.daysLeft > EXPIRING_SOON_DAYS)
-  const urgentTotal = sorted.filter((item) => item.daysLeft <= EXPIRING_SOON_DAYS).length
+  const urgent = shown.filter((item) => item.is_imminent)
+  const relaxed = shown.filter((item) => !item.is_imminent)
 
-  const countOf = (name) =>
-    name === '전체' ? ingredients.length : ingredients.filter((i) => i.storage === name).length
+  const filterLabel = (name) => (name === ALL ? '전체' : storageLabel(name))
+  const countOf = (name) => (name === ALL ? fridge.total : (fridge.storage_counts[name] ?? 0))
 
   return (
     <Screen>
@@ -64,7 +63,7 @@ export default function FridgeScreen() {
           <View>
             <PageTitle>내 냉장고</PageTitle>
             <Text style={styles.summary}>
-              재료 {ingredients.length}개 · 임박 {urgentTotal}개
+              재료 {fridge.total}개 · 임박 {fridge.imminent_count}개
             </Text>
           </View>
           <Pressable
@@ -96,7 +95,7 @@ export default function FridgeScreen() {
                 onPress={() => setFilter(name)}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {name} {countOf(name)}
+                  {filterLabel(name)} {countOf(name)}
                 </Text>
               </Pressable>
             )
@@ -131,11 +130,13 @@ export default function FridgeScreen() {
 
         {shown.length === 0 && (
           <Text style={styles.empty}>
-            {query.trim()
-              ? `'${query.trim()}'에 맞는 재료가 없어요`
-              : filter === '전체'
-                ? '냉장고가 비어 있어요'
-                : `${filter} 보관 재료가 없어요`}
+            {loadError
+              ? loadError
+              : query.trim()
+                ? `'${query.trim()}'에 맞는 재료가 없어요`
+                : filter === ALL
+                  ? '냉장고가 비어 있어요'
+                  : `${storageLabel(filter)} 보관 재료가 없어요`}
           </Text>
         )}
       </ScrollView>
@@ -151,8 +152,8 @@ export default function FridgeScreen() {
 }
 
 function IngredientRow({ item, urgent = false }) {
-  const details = [item.storage, `${item.quantity}${item.unit}`]
-  if (urgent) details.push(`${formatMonthDay(item.expiryDate)}까지`)
+  const details = [storageLabel(item.storage), `${item.quantity}${item.unit}`]
+  if (urgent) details.push(`${formatMonthDay(item.expires_on)}까지`)
 
   return (
     <View style={styles.row}>
@@ -165,7 +166,7 @@ function IngredientRow({ item, urgent = false }) {
       </View>
       <View style={[styles.badge, urgent && styles.badgeStrong]}>
         <Text style={[styles.badgeText, urgent && styles.badgeTextStrong]}>
-          {formatDday(item.daysLeft)}
+          {formatDday(item.d_day)}
         </Text>
       </View>
     </View>

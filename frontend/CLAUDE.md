@@ -5,7 +5,9 @@
 ## 규칙
 - **Expo + JavaScript** 사용. TypeScript(.ts/.tsx)는 쓰지 않는다. (루트 CLAUDE.md의 "TypeScript"보다 이 규칙이 우선: 팀 결정으로 JavaScript로 변경)
 - **데이터 코드는 한 곳에**: 재료·레시피·알림·XP 등 데이터와 데이터를 다루는 코드는 `src/data/`에만 둔다. 화면에서는 `src/data/index.js`(`../data`)로만 가져다 쓴다. 사용법은 `USAGE.md`
-- **저장/불러오기는 `src/data/storage.js` 한 파일에서만** 한다. 지금은 AsyncStorage, 나중에 백엔드 API로 이 파일만 바꾼다. 모든 데이터 함수는 async
+- **가짜 모드 / 서버 모드**: `src/data/config.js`의 `DATA_MODE`(`'mock'` 기본 / `'server'`) 한 줄로 바꾼다. 두 모드는 같은 이름·모양의 함수를 내보내서 화면 코드는 모드를 모른다. 모든 데이터 함수는 async이고 실패하면 에러를 던진다
+- **데이터 모양은 백엔드 API 응답 그대로** (`backend` 브랜치의 `backend/README.md`, `schemas.py`가 기준): `id`는 숫자, `expires_on`·`d_day`·`is_imminent` 같은 snake_case, 보관 위치는 `FRIDGE`/`FREEZER`/`ROOM`로 저장하고 화면에는 `storageLabel()`로 냉장/냉동/실온을 보여 준다
+- **저장/통신은 두 파일에서만**: 가짜 모드는 `src/data/mock/storage.js`(AsyncStorage), 서버 모드는 `src/data/server/api.js`(fetch + 게스트 로그인 토큰)
 - **색상은 테마 파일에서만**: `src/theme/colors.js`에만 색 코드를 쓴다. 다른 파일은 `colors.primary`처럼 불러서 쓰고 `'#4a5ae8'` 같은 색 코드를 직접 쓰지 않는다
 - 아이콘은 이모지 대신 선 아이콘(react-native-svg)을 쓰고 `src/components/Icons.js`에 모은다
 
@@ -23,10 +25,14 @@
 - `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
 - `src/data/`: 앱 데이터
-  - `rules.js`: XP·레벨·뱃지·인식 신뢰도 기준 / `presets.js`: 재료 프리셋 / `dummyData.js`: 처음 시작 데이터
-  - `recognition.js`: 사진 속 재료 인식. 지금은 가짜 결과, 백엔드가 생기면 이 파일의 `API_URL`과 fetch 부분만 바꾼다
-  - 더미 데이터를 바꾸면 `storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
-  - `KEEP_DATES_FROM_TODAY = true`: 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용, 실제 서비스에선 false)
+  - `config.js`: 모드 스위치(`DATA_MODE`)와 백엔드 주소(`API_BASE_URL`, 폰은 PC IP)
+  - `index.js`: 화면이 가져다 쓰는 입구. 모드에 따라 `mock/` 또는 `server/` 구현을 연결
+  - `utils.js`: 두 모드 공통 도구 (날짜, `storageLabel`, `matchesName`)
+  - `server/`: 서버 모드. `api.js`(통신·토큰·에러), `index.js`(API별 함수)
+  - `mock/`: 가짜 모드. 백엔드와 똑같이 동작하도록 흉내 냄
+    - `rules.js`(XP·레벨·뱃지·임박·인식 기준), `presets.js`(재료 프리셋): 백엔드 `gamification/rules.py`, `seeds/data.py`와 같은 값으로 유지한다. 가짜 모드에서만 쓴다
+    - `dummyData.js`: 처음 시작 데이터. 바꾸면 `mock/storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
+    - `KEEP_DATES_FROM_TODAY = true`(`mock/storage.js`): 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용)
 
 ## 화면 이동
 - `import { router } from 'expo-router'` 후 `router.push('/ingredient/add')`, 뒤로는 `router.back()`

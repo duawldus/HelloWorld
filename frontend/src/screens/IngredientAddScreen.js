@@ -2,28 +2,43 @@
 // - 자주 쓰는 재료를 탭하면 프리셋 유통기한으로 바로 등록되고, 아래에 3초간 알림이 뜹니다.
 // - 검색창에 입력하면 그리드 대신 프리셋 검색 결과가 나오고, 탭하면 똑같이 바로 등록됩니다.
 // - 목록에 없는 재료는 직접 입력 화면(/ingredient/form)에서 등록합니다.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
-import { addIngredient, findPreset, searchPresets, FREQUENT_INGREDIENTS } from '../data'
+import { addIngredient, getPresets, matchesName, storageLabel } from '../data'
 import { CameraIcon, ImageIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
 import { SearchBar } from '../components/SearchBar'
 import { Toast, useToast } from '../components/Toast'
 import { colors } from '../theme/colors'
 
-const frequentPresets = FREQUENT_INGREDIENTS.map(findPreset).filter(Boolean)
-
 export default function IngredientAddScreen() {
   const [query, setQuery] = useState('')
+  const [presets, setPresets] = useState([]) // 전체 프리셋 (검색용)
+  const [frequentPresets, setFrequentPresets] = useState([]) // 자주 쓰는 재료 8개
   const [toast, showToast, hideToast] = useToast()
 
+  useEffect(() => {
+    Promise.all([getPresets(), getPresets({ frequent: true })])
+      .then(([all, frequent]) => {
+        setPresets(all)
+        setFrequentPresets(frequent)
+      })
+      .catch((error) => showToast({ message: error.message }))
+  }, [showToast])
+
   const isSearching = query.trim().length > 0
-  const results = isSearching ? searchPresets(query) : []
+  const results = isSearching ? presets.filter((preset) => matchesName(preset.name, query)) : []
 
   // 같은 재료를 또 누르면 따로 한 개 더 등록됩니다.
   const handleAdd = async (preset) => {
-    const added = await addIngredient({ name: preset.name })
+    let added
+    try {
+      added = await addIngredient({ name: preset.name, preset_id: preset.id }, 'PRESET')
+    } catch (error) {
+      showToast({ message: error.message })
+      return
+    }
     showToast({
       message: `${withSubject(added.name)} 냉장고에 추가됐어요`,
       actionLabel: '수정',
@@ -63,7 +78,7 @@ export default function IngredientAddScreen() {
         {isSearching ? (
           <View style={styles.section}>
             {results.map((preset) => (
-              <PresetRow key={preset.name} preset={preset} onPress={() => handleAdd(preset)} />
+              <PresetRow key={preset.id} preset={preset} onPress={() => handleAdd(preset)} />
             ))}
             {results.length === 0 && (
               <View style={styles.noResult}>
@@ -80,7 +95,7 @@ export default function IngredientAddScreen() {
             <View style={styles.grid}>
               {frequentPresets.map((preset) => (
                 <Pressable
-                  key={preset.name}
+                  key={preset.id}
                   style={styles.gridItem}
                   onPress={() => handleAdd(preset)}
                   accessibilityLabel={`${preset.name} 바로 등록`}
@@ -93,8 +108,8 @@ export default function IngredientAddScreen() {
               ))}
             </View>
             <Text style={styles.gridHint}>
-              탭하면 바로 등록돼요 · 유통기한 자동 지정 (예: 계란 {findPreset('계란').shelfLifeDays}일,
-              두부 {findPreset('두부').shelfLifeDays}일)
+              탭하면 바로 등록돼요 · 유통기한 자동 지정 (예: 계란 {shelfDays(presets, '계란', 21)}일,
+              두부 {shelfDays(presets, '두부', 7)}일)
             </Text>
           </View>
         )}
@@ -118,13 +133,18 @@ function PresetRow({ preset, onPress }) {
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{preset.name}</Text>
         <Text style={styles.rowDetails}>
-          {preset.storage} · {preset.packQuantity}
-          {preset.unit} · 유통기한 {preset.shelfLifeDays}일
+          {storageLabel(preset.default_storage)} · {preset.default_quantity}
+          {preset.default_unit} · 유통기한 {preset.shelf_life_days}일
         </Text>
       </View>
       <Text style={styles.rowAdd}>추가</Text>
     </Pressable>
   )
+}
+
+// 프리셋 기본 유통기한(일). 불러오기 전에는 fallback
+function shelfDays(presets, name, fallback) {
+  return presets.find((preset) => preset.name === name)?.shelf_life_days ?? fallback
 }
 
 // 받침에 따라 '계란이' / '두부가'

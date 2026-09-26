@@ -72,15 +72,15 @@ export default function PhotoAddScreen() {
     setPhotoUri(photo.uri)
     setAnalyzing(true)
     try {
-      const candidates = await recognizeIngredients(photo)
+      const { items } = await recognizeIngredients(photo)
       if (leftScreen.current) return
       router.push({
         pathname: '/ingredient/review',
-        params: { candidates: JSON.stringify(candidates) },
+        params: { candidates: JSON.stringify(items) },
       })
       setPhotoUri(null) // 결과 화면에서 돌아오면 다시 찍을 수 있게
-    } catch {
-      setNotice({ message: '재료를 찾지 못했어요. 다시 시도해 주세요.' })
+    } catch (error) {
+      setNotice({ message: `재료를 찾지 못했어요. ${error.message}` })
       setPhotoUri(null)
     } finally {
       setAnalyzing(false)

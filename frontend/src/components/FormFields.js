@@ -24,15 +24,18 @@ export function TextField({ style, ...props }) {
 
 // 유통기한 고르기: −/+ 로 하루씩, 아래 칩으로 3·7·14·30일 빠르게
 // daysLeft = 오늘부터 유통기한까지 남은 날. 예) <ExpiryPicker daysLeft={7} onChange={setDaysLeft} />
-export function ExpiryPicker({ daysLeft, onChange }) {
+// minDays 를 주면 그보다 앞당길 수 없음 (예: minDays={0} → 오늘 이전 불가)
+export function ExpiryPicker({ daysLeft, onChange, minDays }) {
   const expiryDate = addDays(todayString(), daysLeft)
+  const atMin = minDays !== undefined && daysLeft <= minDays
 
   return (
     <View>
       <View style={styles.dateBox}>
         <Pressable
-          style={styles.stepButton}
+          style={[styles.stepButton, atMin && styles.stepButtonDisabled]}
           onPress={() => onChange(daysLeft - 1)}
+          disabled={atMin}
           accessibilityLabel="하루 앞당기기"
         >
           <Text style={styles.stepText}>−</Text>
@@ -119,6 +122,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
     backgroundColor: colors.primaryLight,
+  },
+  stepButtonDisabled: {
+    opacity: 0.4,
   },
   stepText: {
     fontSize: 22,

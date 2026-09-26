@@ -1,6 +1,18 @@
-// 날짜 계산과 id 만들기처럼 데이터 파일들이 같이 쓰는 작은 도구들.
+// 가짜 모드·서버 모드가 같이 쓰는 작은 도구들: 날짜, 보관 위치 이름, 이름 검색
 // 날짜는 모두 'YYYY-MM-DD' 글자로 다룹니다. (예: '2026-09-25')
 
+// ----- 보관 위치 -----
+// 저장·서버 통신은 영어 코드, 화면에는 한국어로 보여 줍니다.
+export const STORAGE_TYPES = ['FRIDGE', 'FREEZER', 'ROOM']
+
+const STORAGE_LABELS = { FRIDGE: '냉장', FREEZER: '냉동', ROOM: '실온' }
+
+// 'FRIDGE' → '냉장'
+export function storageLabel(storage) {
+  return STORAGE_LABELS[storage] ?? storage
+}
+
+// ----- 날짜 -----
 export function todayString() {
   return toDateString(new Date())
 }
@@ -25,16 +37,18 @@ export function daysBetween(fromDateString, toDateString_) {
   return Math.round(ms / (1000 * 60 * 60 * 24))
 }
 
+// 오늘부터 그 날짜까지 남은 날 (오늘이면 0, 지났으면 음수). 예) daysUntil(item.expires_on)
+export function daysUntil(dateString) {
+  return daysBetween(todayString(), dateString)
+}
+
 function parseDate(dateString) {
   const [y, m, d] = dateString.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
-export function createId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-// 이름 검색: 띄어쓰기·대소문자 무시, 초성으로도 찾기. 예) matchesName('돼지고기', 'ㄷㅈ') → true
+// ----- 이름 검색 -----
+// 띄어쓰기·대소문자 무시, 초성으로도 찾기. 예) matchesName('돼지고기', 'ㄷㅈ') → true
 export function matchesName(name, query) {
   const q = normalize(query)
   if (!q) return true

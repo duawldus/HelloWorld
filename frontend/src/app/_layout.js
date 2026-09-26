@@ -44,6 +44,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     overflow: 'hidden',
     backgroundColor: colors.screenBg,
-    boxShadow: '0 20px 40px rgba(28, 29, 43, 0.12)',
+    boxShadow: `0 20px 40px ${colors.phoneFrameShadow}`,
   },
 })

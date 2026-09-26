@@ -8,8 +8,8 @@ import {
   addDays,
   addIngredient,
   deleteIngredient,
-  getDaysLeft,
-  getIngredients,
+  getIngredient,
+  storageLabel,
   todayString,
   updateIngredient,
   STORAGE_TYPES,
@@ -20,54 +20,67 @@ import { colors } from '../theme/colors'
 
 export default function IngredientFormScreen() {
   const params = useLocalSearchParams()
-  const editId = params.id
+  const editId = params.id ? Number(params.id) : null // 주소의 값은 글자라서 숫자 id로 바꿈
   const [loaded, setLoaded] = useState(!editId)
   const [name, setName] = useState(params.name ?? '')
   const [quantity, setQuantity] = useState('1')
   const [unit, setUnit] = useState('개')
-  const [storage, setStorage] = useState('냉장')
+  const [storage, setStorage] = useState('FRIDGE')
   const [daysLeft, setDaysLeft] = useState(7) // 오늘부터 유통기한까지 남은 날
+  const [error, setError] = useState(null)
 
   // 수정이면 저장된 재료 값으로 채웁니다.
   useEffect(() => {
     if (!editId) return
-    getIngredients().then((items) => {
-      const item = items.find((i) => i.id === editId)
-      if (!item) return router.back()
-      setName(item.name)
-      setQuantity(String(item.quantity))
-      setUnit(item.unit)
-      setStorage(item.storage)
-      setDaysLeft(getDaysLeft(item))
-      setLoaded(true)
-    })
+    getIngredient(editId)
+      .then((item) => {
+        setName(item.name)
+        setQuantity(String(item.quantity))
+        setUnit(item.unit)
+        setStorage(item.storage)
+        setDaysLeft(item.d_day)
+        setLoaded(true)
+      })
+      .catch(() => router.back())
   }, [editId])
 
   const quantityNumber = Number(quantity)
   const canSave = name.trim() && unit.trim() && quantityNumber > 0
 
-  const handleSave = async () => {
-    if (!canSave) return
-    const values = {
-      name: name.trim(),
-      quantity: quantityNumber,
-      unit: unit.trim(),
-      storage,
-      expiryDate: addDays(todayString(), daysLeft),
-    }
-    if (editId) {
-      await updateIngredient(editId, values)
-      router.back()
-    } else {
-      await addIngredient(values)
-      router.dismissTo('/fridge') // 냉장고 화면으로 돌아가 바로 확인
+  // 저장이 실패하면(서버 연결 실패 등) 이유를 버튼 위에 보여 줍니다.
+  const run = async (action) => {
+    try {
+      setError(null)
+      await action()
+    } catch (e) {
+      setError(e.message)
     }
   }
 
-  const handleDelete = async () => {
-    await deleteIngredient(editId)
-    router.back()
-  }
+  const handleSave = () =>
+    run(async () => {
+      if (!canSave) return
+      const values = {
+        name: name.trim(),
+        quantity: quantityNumber,
+        unit: unit.trim(),
+        storage,
+        expires_on: addDays(todayString(), daysLeft),
+      }
+      if (editId) {
+        await updateIngredient(editId, values)
+        router.back()
+      } else {
+        await addIngredient(values)
+        router.dismissTo('/fridge') // 냉장고 화면으로 돌아가 바로 확인
+      }
+    })
+
+  const handleDelete = () =>
+    run(async () => {
+      await deleteIngredient(editId)
+      router.back()
+    })
 
   if (!loaded) return <Screen edges={['top', 'bottom']} />
 
@@ -102,14 +115,26 @@ export default function IngredientFormScreen() {
         <Field label="보관 위치">
           <View style={styles.chips}>
             {STORAGE_TYPES.map((type) => (
-              <Chip key={type} label={type} active={storage === type} onPress={() => setStorage(type)} />
+              <Chip
+                key={type}
+                label={storageLabel(type)}
+                active={storage === type}
+                onPress={() => setStorage(type)}
+              />
             ))}
           </View>
         </Field>
 
         <Field label="유통기한">
-          <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} />
+          {/* 새로 등록할 때는 지난 날짜를 고를 수 없음 (백엔드도 거절) */}
+          <ExpiryPicker
+            daysLeft={daysLeft}
+            onChange={setDaysLeft}
+            minDays={editId ? undefined : 0}
+          />
         </Field>
+
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
@@ -147,6 +172,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  error: {
+    marginTop: 20,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.danger,
+  },
   saveButton: {
     alignItems: 'center',
     justifyContent: 'center',

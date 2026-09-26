@@ -1,5 +1,6 @@
 // 인식 결과 확인 화면 (와이어프레임 3-2)
-// - 사진 인식 결과를 신뢰도와 함께 보여 줍니다. 70% 미만은 주황색으로 표시하고 처음엔 선택하지 않습니다.
+// - 사진 인식 결과를 신뢰도와 함께 보여 줍니다. 백엔드가 needs_review(확인 필요)로 표시한 재료는
+//   주황색으로 보여 주고 처음엔 선택하지 않습니다. (기준: 백엔드 AI_LOW_CONFIDENCE, 지금은 80% 미만)
 // - 왼쪽 체크(+)만 누르면 선택/해제, 카드를 누르면 아래에서 수정 창이 올라옵니다.
 // - '재료 N개 등록하기' → 선택한 재료를 한 번에 저장(+XP)하고 냉장고 화면으로 이동합니다.
 import { useEffect, useRef, useState } from 'react'
@@ -15,24 +16,20 @@ import {
 } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import {
-  addDays,
-  addIngredientsByPhoto,
-  getDaysLeft,
-  todayString,
-  CONFIDENT_PERCENT,
-} from '../data'
+import { addDays, addIngredientsByPhoto, daysUntil, todayString } from '../data'
 import { ExpiryPicker, Field, TextField } from '../components/FormFields'
 import { CheckIcon, ImageIcon, PlusIcon, SparkleIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
 import { colors } from '../theme/colors'
 
-// 화면에서 쓰는 후보 하나: 인식 결과 + { selected, confirmed(수정 창에서 확인함), autoExpiry }
+// 화면에서 쓰는 후보 하나: 인식 결과 + { key, selected, confirmed(수정 창에서 확인함), autoExpiry }
+// 인식 결과 모양: { name, preset_id, quantity, unit, storage, expires_on, confidence(0~1), needs_review }
 function toReviewItems(candidatesJson) {
   try {
-    return JSON.parse(candidatesJson).map((candidate) => ({
+    return JSON.parse(candidatesJson).map((candidate, index) => ({
       ...candidate,
-      selected: candidate.confidence >= CONFIDENT_PERCENT,
+      key: index + 1,
+      selected: !candidate.needs_review,
       confirmed: false,
       autoExpiry: true,
     }))
@@ -46,39 +43,47 @@ export default function IngredientReviewScreen() {
   const [items, setItems] = useState(() => toReviewItems(candidates))
   const [editing, setEditing] = useState(null) // 수정 창에 열린 후보
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
 
   const selected = items.filter((item) => item.selected)
 
-  const toggle = (id) =>
-    setItems(items.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)))
+  const toggle = (key) =>
+    setItems(items.map((item) => (item.key === key ? { ...item, selected: !item.selected } : item)))
 
   const saveEdit = (changed) => {
-    setItems(items.map((item) => (item.id === changed.id ? changed : item)))
+    setItems(items.map((item) => (item.key === changed.key ? changed : item)))
     setEditing(null)
   }
 
-  const removeItem = (id) => {
-    setItems(items.filter((item) => item.id !== id))
+  const removeItem = (key) => {
+    setItems(items.filter((item) => item.key !== key))
     setEditing(null)
   }
 
   const handleRegister = async () => {
     if (selected.length === 0 || saving) return
     setSaving(true)
-    const result = await addIngredientsByPhoto(
-      selected.map(({ name, quantity, unit, storage, expiryDate }) => ({
-        name,
-        quantity,
-        unit,
-        storage,
-        expiryDate,
-      })),
-    )
-    // 냉장고 화면으로 돌아가서 '재료 N개를 등록했어요 · +N XP' 알림을 띄웁니다.
-    router.dismissTo({
-      pathname: '/fridge',
-      params: { photoAdded: String(result.added.length), xp: String(result.gainedXp) },
-    })
+    setError(null)
+    try {
+      const result = await addIngredientsByPhoto(
+        selected.map(({ name, preset_id, quantity, unit, storage, expires_on }) => ({
+          name,
+          preset_id,
+          quantity,
+          unit,
+          storage,
+          expires_on,
+        })),
+      )
+      // 냉장고 화면으로 돌아가서 '재료 N개를 등록했어요 · +N XP' 알림을 띄웁니다.
+      router.dismissTo({
+        pathname: '/fridge',
+        params: { photoAdded: String(result.items.length), xp: String(result.xp?.amount ?? 0) },
+      })
+    } catch (e) {
+      setError(e.message)
+      setSaving(false)
+    }
   }
 
   return (
@@ -94,9 +99,9 @@ export default function IngredientReviewScreen() {
 
           {items.map((item) => (
             <CandidateCard
-              key={item.id}
+              key={item.key}
               item={item}
-              onToggle={() => toggle(item.id)}
+              onToggle={() => toggle(item.key)}
               onPress={() => setEditing(item)}
             />
           ))}
@@ -111,6 +116,7 @@ export default function IngredientReviewScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
+          {error && <Text style={styles.error}>{error}</Text>}
           <Pressable
             style={[styles.registerButton, selected.length === 0 && styles.registerButtonDisabled]}
             onPress={handleRegister}
@@ -126,7 +132,7 @@ export default function IngredientReviewScreen() {
           item={editing}
           onClose={() => setEditing(null)}
           onSave={saveEdit}
-          onDelete={() => removeItem(editing.id)}
+          onDelete={() => removeItem(editing.key)}
         />
       )}
     </View>
@@ -134,7 +140,7 @@ export default function IngredientReviewScreen() {
 }
 
 function CandidateCard({ item, onToggle, onPress }) {
-  const confident = item.confidence >= CONFIDENT_PERCENT
+  const confident = !item.needs_review
   const needsCheck = !confident && !item.confirmed // 주황 '?' 와 '확실하지 않아요' 표시
 
   return (
@@ -171,13 +177,13 @@ function CandidateCard({ item, onToggle, onPress }) {
         <Text style={styles.details}>
           {needsCheck
             ? '확실하지 않아요 · 탭해서 확인'
-            : `${item.quantity}${item.unit} · 유통기한 ${formatMonthDay(item.expiryDate)}${item.autoExpiry ? ' (자동)' : ''}`}
+            : `${item.quantity}${item.unit} · 유통기한 ${formatMonthDay(item.expires_on)}${item.autoExpiry ? ' (자동)' : ''}`}
         </Text>
       </View>
 
       <View style={[styles.badge, !confident && styles.badgeWarn]}>
         <Text style={[styles.badgeText, !confident && styles.badgeTextWarn]}>
-          {item.confidence}%
+          {Math.round(item.confidence * 100)}%
         </Text>
       </View>
     </Pressable>
@@ -188,7 +194,7 @@ function CandidateCard({ item, onToggle, onPress }) {
 function EditSheet({ item, onClose, onSave, onDelete }) {
   const insets = useSafeAreaInsets()
   const slide = useRef(new Animated.Value(1)).current
-  const initialDays = getDaysLeft(item)
+  const initialDays = daysUntil(item.expires_on)
   const [name, setName] = useState(item.name)
   const [quantity, setQuantity] = useState(String(item.quantity))
   const [unit, setUnit] = useState(item.unit)
@@ -207,12 +213,14 @@ function EditSheet({ item, onClose, onSave, onDelete }) {
 
   const handleConfirm = () => {
     if (!canSave) return
+    const newName = name.trim()
     onSave({
       ...item,
-      name: name.trim(),
+      name: newName,
+      preset_id: newName === item.name ? item.preset_id : null, // 이름을 바꾸면 프리셋 연결 해제
       quantity: quantityNumber,
       unit: unit.trim(),
-      expiryDate: addDays(todayString(), daysLeft),
+      expires_on: addDays(todayString(), daysLeft),
       autoExpiry: item.autoExpiry && daysLeft === initialDays,
       confirmed: true,
       selected: true,
@@ -252,7 +260,7 @@ function EditSheet({ item, onClose, onSave, onDelete }) {
           </Field>
         </View>
         <Field label="유통기한">
-          <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} />
+          <ExpiryPicker daysLeft={daysLeft} onChange={setDaysLeft} minDays={0} />
         </Field>
 
         <View style={styles.sheetButtons}>
@@ -403,6 +411,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 16,
+  },
+  error: {
+    marginBottom: 10,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.danger,
   },
   registerButton: {
     alignItems: 'center',
