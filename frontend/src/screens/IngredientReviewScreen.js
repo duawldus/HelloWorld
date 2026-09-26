@@ -168,7 +168,7 @@ function CandidateCard({ item, onToggle, onPress }) {
           </Text>
           {needsCheck && <Text style={styles.question}>?</Text>}
         </View>
-        <Text style={styles.details} numberOfLines={1}>
+        <Text style={styles.details}>
           {needsCheck
             ? '확실하지 않아요 · 탭해서 확인'
             : `${item.quantity}${item.unit} · 유통기한 ${formatMonthDay(item.expiryDate)}${item.autoExpiry ? ' (자동)' : ''}`}
@@ -364,6 +364,7 @@ const styles = StyleSheet.create({
   details: {
     marginTop: 3,
     fontSize: 12,
+    lineHeight: 17, // 길면 줄바꿈되어 두 줄로 보임
     color: colors.textSub,
   },
   badge: {
