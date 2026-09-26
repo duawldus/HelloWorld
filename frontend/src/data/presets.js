@@ -5,6 +5,7 @@
 // price        : 그 양의 대략적인 가격(원). 절약 식비 계산에 씁니다.
 // shelfLifeDays: 산 날부터 기본 유통기한(일)
 // storage      : 기본 보관 위치 ('냉장' | '냉동' | '실온')
+import { matchesName } from './utils.js'
 
 export const INGREDIENT_PRESETS = [
   { name: '계란', unit: '개', packQuantity: 10, price: 3500, shelfLifeDays: 21, storage: '냉장' },
@@ -32,10 +33,19 @@ export const INGREDIENT_PRESETS = [
   { name: '참치캔', unit: '개', packQuantity: 3, price: 5000, shelfLifeDays: 365, storage: '실온' },
   { name: '라면', unit: '개', packQuantity: 5, price: 4500, shelfLifeDays: 180, storage: '실온' },
   { name: '즉석밥', unit: '개', packQuantity: 3, price: 3500, shelfLifeDays: 270, storage: '실온' },
+  { name: '스팸', unit: '캔', packQuantity: 1, price: 4000, shelfLifeDays: 365, storage: '실온' },
 ]
+
+// 재료 추가 화면의 '자주 쓰는 재료' (4칸 x 2줄, 이 순서대로 보임). 모두 위 목록에 있는 이름이어야 합니다.
+export const FREQUENT_INGREDIENTS = ['계란', '두부', '대파', '양파', '우유', '김치', '돼지고기', '스팸']
 
 export const STORAGE_TYPES = ['냉장', '냉동', '실온']
 
 export function findPreset(name) {
   return INGREDIENT_PRESETS.find((preset) => preset.name === name)
+}
+
+// 이름으로 프리셋 재료 찾기. 예) searchPresets('파') → [대파, 양파], searchPresets('ㄷㅂ') → [두부]
+export function searchPresets(query) {
+  return INGREDIENT_PRESETS.filter((preset) => matchesName(preset.name, query))
 }

@@ -91,6 +91,23 @@ export function BackIcon(props) {
   )
 }
 
+export function CameraIcon(props) {
+  return (
+    <Icon size={22} color={colors.textOnPrimary} {...props}>
+      <Path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+      <Circle cx="12" cy="13" r="3.5" />
+    </Icon>
+  )
+}
+
+export function CloseIcon(props) {
+  return (
+    <Icon size={18} {...props}>
+      <Path d="M6 6l12 12M18 6 6 18" />
+    </Icon>
+  )
+}
+
 export function ChevronDownIcon(props) {
   return (
     <Icon size={12} {...props}>

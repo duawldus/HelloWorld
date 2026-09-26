@@ -109,6 +109,10 @@ export default function MyScreen() {
 | `deleteIngredient(id)` | 재료 삭제 |
 | `addIngredientsByPhoto([{ name: '계란' }, ...])` | 사진으로 등록 (1개당 +5 XP) |
 | `isExpiringSoon(재료)` / `getDaysLeft(재료)` | 유통기한 임박 여부 / 남은 날 |
+| `searchPresets('파')` | 프리셋 재료 이름 검색 (초성 `'ㄷㅂ'`도 됨) |
+| `matchesName(재료.name, 검색어)` | 이름이 검색어에 맞는지 (냉장고 재료 검색용) |
+| `FREQUENT_INGREDIENTS` | 재료 추가 화면의 '자주 쓰는 재료' 이름 목록 |
+| `todayString()` / `addDays('2026-09-25', 7)` | 오늘 날짜 / 날짜 더하기 (`'YYYY-MM-DD'`) |
 | `resetAllData()` | 테스트 데이터로 처음부터 다시 시작 |
 
 XP 점수나 레벨 기준을 바꾸고 싶으면 `src/data/rules.js`만 고치면 돼요.

@@ -24,4 +24,10 @@ export const colors = {
   // 테두리
   border: '#dfe2ec',
   phoneFrame: '#cfd2de', // 웹에서 휴대폰 틀 테두리
+
+  // 기타
+  onPrimaryBadge: 'rgba(255, 255, 255, 0.24)', // 메인 색 버튼 위의 작은 뱃지 (예: AI)
+  toastBg: '#2a2c3d', // 아래에 잠깐 뜨는 알림
+  toastAction: '#aab3ff', // 알림 안의 '수정' 같은 버튼 글자
+  danger: '#e5484d', // 삭제, 입력 오류
 }

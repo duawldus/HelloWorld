@@ -2,9 +2,16 @@
 import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { getIngredients, getDaysLeft, STORAGE_TYPES, EXPIRING_SOON_DAYS } from '../data'
-import { ChevronDownIcon, ImageIcon, PlusIcon, SearchIcon } from '../components/Icons'
+import {
+  getIngredients,
+  getDaysLeft,
+  matchesName,
+  STORAGE_TYPES,
+  EXPIRING_SOON_DAYS,
+} from '../data'
+import { ChevronDownIcon, CloseIcon, ImageIcon, PlusIcon, SearchIcon } from '../components/Icons'
 import { PageTitle, Screen } from '../components/Screen'
+import { SearchBar } from '../components/SearchBar'
 import { colors } from '../theme/colors'
 
 const FILTERS = ['전체', ...STORAGE_TYPES]
@@ -12,6 +19,13 @@ const FILTERS = ['전체', ...STORAGE_TYPES]
 export default function FridgeScreen() {
   const [ingredients, setIngredients] = useState([])
   const [filter, setFilter] = useState('전체')
+  const [searching, setSearching] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const toggleSearch = () => {
+    setSearching(!searching)
+    setQuery('')
+  }
 
   // 이 화면이 보일 때마다 재료를 다시 불러옵니다 (재료 추가 후 돌아왔을 때 등)
   useFocusEffect(
@@ -23,7 +37,9 @@ export default function FridgeScreen() {
   const sorted = ingredients
     .map((item) => ({ ...item, daysLeft: getDaysLeft(item) }))
     .sort((a, b) => a.daysLeft - b.daysLeft)
-  const shown = filter === '전체' ? sorted : sorted.filter((item) => item.storage === filter)
+  const shown = sorted.filter(
+    (item) => (filter === '전체' || item.storage === filter) && matchesName(item.name, query),
+  )
   const urgent = shown.filter((item) => item.daysLeft <= EXPIRING_SOON_DAYS)
   const relaxed = shown.filter((item) => item.daysLeft > EXPIRING_SOON_DAYS)
   const urgentTotal = sorted.filter((item) => item.daysLeft <= EXPIRING_SOON_DAYS).length
@@ -41,10 +57,24 @@ export default function FridgeScreen() {
               재료 {ingredients.length}개 · 임박 {urgentTotal}개
             </Text>
           </View>
-          <Pressable style={styles.iconButton} accessibilityLabel="재료 검색">
-            <SearchIcon />
+          <Pressable
+            style={styles.iconButton}
+            onPress={toggleSearch}
+            accessibilityLabel={searching ? '검색 닫기' : '재료 검색'}
+          >
+            {searching ? <CloseIcon size={22} /> : <SearchIcon />}
           </Pressable>
         </View>
+
+        {searching && (
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            placeholder="내 냉장고에서 찾기"
+            autoFocus
+            style={styles.search}
+          />
+        )}
 
         <View style={styles.chips}>
           {FILTERS.map((name) => {
@@ -89,10 +119,18 @@ export default function FridgeScreen() {
           </View>
         )}
 
-        {shown.length === 0 && <Text style={styles.empty}>{filter} 보관 재료가 없어요</Text>}
+        {shown.length === 0 && (
+          <Text style={styles.empty}>
+            {query.trim()
+              ? `'${query.trim()}'에 맞는 재료가 없어요`
+              : filter === '전체'
+                ? '냉장고가 비어 있어요'
+                : `${filter} 보관 재료가 없어요`}
+          </Text>
+        )}
       </ScrollView>
 
-      <Pressable style={styles.addButton} onPress={() => router.push('/fridge/add')}>
+      <Pressable style={styles.addButton} onPress={() => router.push('/ingredient/add')}>
         <PlusIcon />
         <Text style={styles.addButtonText}>재료 추가</Text>
       </Pressable>
@@ -159,6 +197,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     backgroundColor: colors.surface,
+  },
+  search: {
+    marginTop: 16,
   },
 
   // 보관 위치 필터 칩

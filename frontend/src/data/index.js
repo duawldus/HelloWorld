@@ -18,6 +18,14 @@ export { getProgress, getLevelInfo } from './progress.js'
 
 export { resetAllData } from './storage.js'
 
-export { INGREDIENT_PRESETS, STORAGE_TYPES, findPreset } from './presets.js'
+export {
+  INGREDIENT_PRESETS,
+  STORAGE_TYPES,
+  FREQUENT_INGREDIENTS,
+  findPreset,
+  searchPresets,
+} from './presets.js'
+
+export { matchesName, todayString, addDays } from './utils.js'
 
 export { XP_RULES, LEVELS, BADGES, EXPIRING_SOON_DAYS } from './rules.js'

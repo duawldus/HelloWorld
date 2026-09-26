@@ -33,3 +33,28 @@ function parseDate(dateString) {
 export function createId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
+
+// 이름 검색: 띄어쓰기·대소문자 무시, 초성으로도 찾기. 예) matchesName('돼지고기', 'ㄷㅈ') → true
+export function matchesName(name, query) {
+  const q = normalize(query)
+  if (!q) return true
+  const target = normalize(name)
+  if (target.includes(q)) return true
+  return /^[ㄱ-ㅎ]+$/.test(q) && toChosung(target).includes(q)
+}
+
+function normalize(text) {
+  return text.replace(/\s/g, '').toLowerCase()
+}
+
+const CHOSUNG = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'
+
+// '두부' → 'ㄷㅂ' (한글이 아닌 글자는 그대로)
+function toChosung(text) {
+  return [...text]
+    .map((char) => {
+      const code = char.charCodeAt(0) - 0xac00
+      return code >= 0 && code < 11172 ? CHOSUNG[Math.floor(code / 588)] : char
+    })
+    .join('')
+}

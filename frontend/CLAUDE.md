@@ -17,9 +17,10 @@
 - `src/app/`: 화면 경로 (expo-router). 파일 하나가 화면 하나이고, `_layout.js`는 화면 틀
   - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀)
   - `(tabs)/_layout.js`: 하단 탭바 (홈/냉장고/레시피/생활알림)
-  - `(tabs)/fridge/`: 냉장고 탭 안의 화면들 (`index.js` 목록, `add.js` 재료 추가)
+  - `(tabs)/`: 탭바가 보이는 화면 (`index.js` 홈, `fridge.js` 냉장고, `recipe.js`, `alert.js`)
+  - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진 등록)
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
-- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목, `Icons.js` 아이콘)
+- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
 - `src/data/`: 앱 데이터
   - `rules.js`: XP·레벨·뱃지 규칙 / `presets.js`: 재료 프리셋 / `dummyData.js`: 처음 시작 데이터
@@ -27,7 +28,8 @@
   - `KEEP_DATES_FROM_TODAY = true`: 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용, 실제 서비스에선 false)
 
 ## 화면 이동
-- `import { router } from 'expo-router'` 후 `router.push('/fridge/add')`, 뒤로는 `router.back()`
+- `import { router } from 'expo-router'` 후 `router.push('/ingredient/add')`, 뒤로는 `router.back()`
+- 탭바를 숨길 하위 화면은 `(tabs)/` 밖(예: `ingredient/`)에 두고, `<Screen edges={['top', 'bottom']}>` + `<BackHeader title="..." />`를 쓴다
 - 화면이 다시 보일 때 데이터를 새로 불러오려면 `useFocusEffect`를 쓴다 (`FridgeScreen.js` 참고)
 
 ## 명령어 (frontend/ 폴더에서)
