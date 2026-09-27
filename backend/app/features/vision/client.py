@@ -1,4 +1,4 @@
-"""사진 인식 클라이언트. Claude 호출은 반드시 app.common.llm 을 통한다."""
+"""사진 인식 클라이언트. LLM 호출은 반드시 app.common.llm 을 통한다."""
 
 from typing import Protocol
 
@@ -42,8 +42,8 @@ SYSTEM_PROMPT = (
 )
 
 
-class ClaudeVisionClient:
-    """Claude 멀티모달로 사진 속 재료 인식.
+class LLMVisionClient:
+    """Gemini 멀티모달로 사진 속 재료 인식.
 
     TODO(vision): 실제 사진으로 프롬프트 튜닝 (프리셋 이름 목록을 프롬프트에 넣어 이름 통일 등)
     """

@@ -30,7 +30,7 @@
 | Framework | FastAPI |
 | ORM | SQLAlchemy 2.0 |
 | DB | **SQLite** (개발 단계. 추후 PostgreSQL + Alembic 전환 예정 — `DATABASE_URL`만 바꾸면 됨) |
-| LLM | Claude API (`anthropic` SDK) — `app/common/llm`을 통해서만 호출 |
+| LLM | **Gemini API** (`google-genai` SDK, 무료 등급) — `app/common/llm`을 통해서만 호출 |
 | 사용자 식별 | **로그인 없음** — 기기 고유 ID를 `X-Device-Id` 헤더로 전송 |
 | 푸시 알림 | Expo Push (발송 로직은 TODO) |
 | 스케줄러 | APScheduler |
@@ -93,7 +93,7 @@ backend/
 │   ├── scheduler.py          # 푸시 알림 스케줄러
 │   ├── common/
 │   │   ├── db/               # 🔒 DB 공통 모듈 (엔진, 세션, Base) — 담당자 외 수정 금지
-│   │   ├── llm/              # 🔒 Claude API 공통 모듈 — 담당자 외 수정 금지
+│   │   ├── llm/              # 🔒 LLM(Gemini) 공통 모듈 — 담당자 외 수정 금지
 │   │   ├── config.py         #   환경 변수 설정
 │   │   ├── deps.py           #   DbSession, CurrentUser(X-Device-Id) 의존성
 │   │   ├── exceptions.py     #   공통 예외 → {"code", "message"} 응답
@@ -104,7 +104,7 @@ backend/
 │   │   ├── users/            #   내 정보, 기본 양념(온보딩)
 │   │   ├── home/             #   홈 대시보드 (다른 기능 조합)
 │   │   ├── ingredients/      #   냉장고 재료, 프리셋
-│   │   ├── vision/           #   AI 사진 인식 (Claude)
+│   │   ├── vision/           #   AI 사진 인식 (Gemini)
 │   │   ├── recipes/          #   레시피 추천, 상세, 요리 완료
 │   │   ├── reminders/        #   생활 알림 (세탁·청소·공과금)
 │   │   ├── gamification/     #   XP, 레벨, 연속 기록, 뱃지
@@ -132,7 +132,7 @@ backend/
 | 기능 | 관련 화면 | 담당 | 상태 | 남은 TODO |
 | --- | --- | --- | --- | --- |
 | `ingredients` | 2 냉장고, 3 식재료 추가 | 팀원 | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
-| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 팀원 | 🚧 | Claude 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
+| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 팀원 | 🚧 | Gemini 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
 | `users` | 0 온보딩 · 기본 양념 | WSY129 | ✅ | |
 | `home` | 1 홈 대시보드 | WSY129 | ✅ | |
 | `recipes` | 4 레시피 추천, 5 레시피 상세 | WSY129 | 🚧 | 추천·AI 생성·인분 조절 완료 → **요리 완료(재료 소진 + XP)**, **실행 취소**, AI 프롬프트 튜닝 |
@@ -142,7 +142,7 @@ backend/
 
 - 아직 구현 안 된 기능은 `raise NotImplementedError` → API가 **501**을 돌려줍니다. 요청/응답 스키마는 이미 정의돼 있어서 **프론트는 Swagger 보고 먼저 붙일 수 있어요.**
 - 코드에서 할 일 찾기: `grep -rn "TODO(" app/` → `TODO(recipes)`처럼 기능 이름이 붙어 있습니다.
-- 사진 인식은 `.env`의 `AI_MOCK=true`(기본값)면 Claude를 호출하지 않고 와이어프레임과 같은 가짜 결과(두부 98%, 계란 95%, 대파 72%)를 돌려줍니다. **API 비용 0원.**
+- 사진 인식은 `.env`의 `AI_MOCK=true`(기본값)면 Gemini를 호출하지 않고 와이어프레임과 같은 가짜 결과(두부 98%, 계란 95%, 대파 72%)를 돌려줍니다. **API 비용 0원.**
 
 ### 경계가 겹치는 곳
 
@@ -195,7 +195,7 @@ backend/
 | 422 | `VALIDATION_ERROR` | 비즈니스 검증 실패 (지난 유통기한 등) |
 | 422 | (FastAPI 기본) | 요청 형식 오류 → `detail` 배열 |
 | 501 | `NOT_IMPLEMENTED` | 아직 TODO인 기능 |
-| 502 | `LLM_ERROR` | Claude 호출 실패 |
+| 502 | `LLM_ERROR` | Gemini 호출 실패 (무료 등급 한도 초과 포함) |
 
 ### 주요 값(enum)
 
@@ -214,7 +214,7 @@ backend/
 ### 1. 공통 모듈 (`common/db`, `common/llm`)
 
 - **담당자 외 수정 금지.** 기능 코드는 import해서 쓰기만 합니다. 수정이 필요하면 담당자에게 요청하거나 이슈를 남겨주세요.
-- **Claude는 `app.common.llm`으로만 호출**합니다. 기능 코드에서 `import anthropic` 금지.
+- **LLM은 `app.common.llm`으로만 호출**합니다. 기능 코드에서 `from google import genai` 금지. (나중에 공급자를 바꿔도 이 파일만 고치면 됨)
   ```python
   from pydantic import BaseModel
   from app.common.llm import generate_structured
@@ -308,16 +308,21 @@ git push origin backend                         # 3. push → GitHub에서 main�
 1. 내 냉장고 재료 + 기본 양념으로 레시피마다 부족 재료를 계산 (대체재가 있으면 가진 걸로, 선택 재료는 제외)
 2. 부족 0개 → `ready`(바로 가능), 1~2개 → `almost`, 3개 이상이거나 내 재료를 하나도 안 쓰면 제외
 3. 정렬: 임박 재료를 많이 쓸수록 → 더 급한 재료를 쓸수록 → 부족한 게 적을수록 → 빨리 만들수록
-4. 결과가 `AI_RECIPE_MIN_RESULTS`(기본 3)개보다 적으면 **Claude가 내 재료로 레시피를 만들어 DB에 저장**하고 다시 추천 (`source=AI`, 다른 사용자도 재사용)
+4. 결과가 `AI_RECIPE_MIN_RESULTS`(기본 3)개보다 적으면 **Gemini가 내 재료로 레시피를 만들어 DB에 저장**하고 다시 추천 (`source=AI`, 다른 사용자도 재사용)
    - 홈 화면의 '오늘의 추천 레시피'는 빨리 떠야 해서 AI 생성 없이 추천만 해요
-   - Claude 호출이 실패해도 추천은 기존 레시피로 정상 응답
+   - Gemini 호출이 실패해도(한도 초과 등) 추천은 기존 레시피로 정상 응답
 
 **Q. 레시피 재료 양을 인분별로 어떻게 저장해요?**
 → `recipe_ingredients`에 1인분 기준 `quantity`(0.5) + `unit`(모)로 저장하고, `GET /recipes/{id}?servings=3`이면 3배 해서 `"1과 1/2모"`처럼 보여줘요. `quantity`가 없으면(`약간`, `적당량`) 그대로 표시.
 
-**Q. 실제 Claude로 사진 인식 · 레시피 생성을 테스트하려면?**
-→ `.env`에 `AI_MOCK=false`, `ANTHROPIC_API_KEY=...` 설정 후 Swagger에서 `/vision/recognize`에 사진 업로드, 또는 레시피에 잘 안 나오는 재료(예: 고추)만 등록하고 `/recipes/recommendations` 호출.
-`AI_MOCK=true`(기본)면 레시피 생성도 가짜("<재료> 볶음")로 만들어져요. 모델은 `LLM_MODEL`(기본 `claude-opus-5`)로 바꿀 수 있어요. 호출할 때마다 API 비용이 나가니 평소엔 `AI_MOCK=true`로 두세요.
+**Q. 실제 Gemini로 사진 인식 · 레시피 생성을 테스트하려면?**
+→ `.env`에 `AI_MOCK=false`, `GEMINI_API_KEY=...` 설정 후 (키는 https://aistudio.google.com/apikey 에서 무료 발급) Swagger에서 `/vision/recognize`에 사진 업로드, 또는 레시피에 잘 안 나오는 재료(예: 고추)만 등록하고 `/recipes/recommendations` 호출.
+`AI_MOCK=true`(기본)면 레시피 생성도 가짜("<재료> 볶음")로 만들어져요. 모델은 `LLM_MODEL`(기본 `gemini-3.8-flash`)로 바꿀 수 있어요.
+
+**Q. Gemini 무료 등급 주의사항은?**
+- 결제 등록 없이 무료로 쓸 수 있지만 **분당·하루 호출 수 한도**가 있어요 (정확한 수치는 AI Studio에서 확인). 넘으면 429 → `LLM_ERROR`
+- 무료 등급은 **보낸 내용(냉장고 사진, 재료 목록)이 Google 제품 개선에 사용**될 수 있어요. 실제 서비스로 운영하면 유료 등급 전환을 검토하세요.
+- 한도를 아끼려고 개발 중엔 `AI_MOCK=true`로 두는 걸 추천해요.
 
 **Q. 푸시 알림 잡을 로컬에서 돌려보려면?**
 → `.env`에 `SCHEDULER_ENABLED=true`. 지금은 `LoggingPushSender`라서 실제 발송 없이 로그만 찍혀요.
@@ -331,4 +336,3 @@ git push origin backend                         # 3. push → GitHub에서 main�
 - [ ] "연속 기록"을 이어주는 행동이 무엇인지 (요리만? 재료 등록·집안일 포함?)
 - [ ] 요리 완료 시 재료를 **통째로 소진**할지 **수량만 차감**할지
 - [ ] 절약 추정 식비 계산 기준 (지금은 1회당 2,300원 가정)
-- [ ] 사진 인식 모델: 비용을 줄이려면 `LLM_MODEL`을 더 저렴한 모델로 바꿀지

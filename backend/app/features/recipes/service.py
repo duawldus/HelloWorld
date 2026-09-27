@@ -10,9 +10,9 @@ from app.common.llm import LLMError
 from app.common.time import d_day
 from app.features.ingredients import service as ingredients
 from app.features.recipes.generator import (
-    ClaudeRecipeGenerator,
     GeneratedRecipe,
     GenerationRequest,
+    LLMRecipeGenerator,
     MockRecipeGenerator,
     RecipeGenerator,
 )
@@ -155,7 +155,7 @@ def _to_card(m: Match, pantry: Pantry, servings: int) -> RecipeCard:
 
 
 def get_generator() -> RecipeGenerator:
-    return MockRecipeGenerator() if settings.AI_MOCK else ClaudeRecipeGenerator()
+    return MockRecipeGenerator() if settings.AI_MOCK else LLMRecipeGenerator()
 
 
 def _save_generated(db: Session, user: User, generated: list[GeneratedRecipe]) -> list[Recipe]:
@@ -195,7 +195,7 @@ def _save_generated(db: Session, user: User, generated: list[GeneratedRecipe]) -
 
 
 def _generate(db: Session, user: User, pantry: Pantry, query: RecommendQuery, generator: RecipeGenerator) -> bool:
-    """Claude로 레시피를 만들어 DB에 저장한다. 실패해도 추천 자체는 실패시키지 않는다."""
+    """AI(Gemini)로 레시피를 만들어 DB에 저장한다. 실패해도 추천 자체는 실패시키지 않는다."""
     req = GenerationRequest(
         ingredients=sorted(pantry.ingredient_days.items(), key=lambda kv: kv[1]),
         seasonings=sorted(pantry.seasoning_names),
@@ -223,7 +223,7 @@ def recommend(
     1. 내 냉장고 재료 + 기본 양념으로 레시피별 부족 재료 계산 (대체재 보유 시 보유로 간주, 선택 재료 제외)
     2. 부족 0개 → ready, 1~2개 → almost, 3개 이상 또는 내 재료를 하나도 안 쓰면 제외
     3. 정렬: 임박 재료 사용 개수 → 가장 급한 재료 → 부족 개수 → 조리 시간
-    4. 결과가 AI_RECIPE_MIN_RESULTS 보다 적으면 Claude가 내 재료로 레시피를 생성·저장한 뒤 다시 추천
+    4. 결과가 AI_RECIPE_MIN_RESULTS 보다 적으면 AI(Gemini)가 내 재료로 레시피를 생성·저장한 뒤 다시 추천
        (generator=None 이면 생성하지 않음 — 홈 화면처럼 빨리 응답해야 하는 곳)
     """
     pantry = load_pantry(db, user)

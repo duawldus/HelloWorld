@@ -54,7 +54,7 @@ def test_vision_mock(client, device_headers):
     assert [i["needs_review"] for i in body["items"]] == [False, False, True]
 
 
-def test_claude_vision_client_uses_common_llm(monkeypatch):
+def test_llm_vision_client_uses_common_llm(monkeypatch):
     from app.features.vision import client as vision_client
 
     captured = {}
@@ -65,7 +65,7 @@ def test_claude_vision_client_uses_common_llm(monkeypatch):
         return output_type(items=[vision_client.RawDetection(name="두부", confidence=0.9)])
 
     monkeypatch.setattr(vision_client, "generate_structured", fake_generate)
-    items = vision_client.ClaudeVisionClient(["두부", "계란"]).detect_ingredients(b"img", "image/png")
+    items = vision_client.LLMVisionClient(["두부", "계란"]).detect_ingredients(b"img", "image/png")
     assert items[0].name == "두부"
     assert captured["images"] == [(b"img", "image/png")]
     assert "두부, 계란" in captured["prompt"]

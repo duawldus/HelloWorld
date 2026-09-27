@@ -29,7 +29,7 @@ def recommend(
     """내 냉장고 + 기본 양념 기준 추천. ready(바로 가능) / almost(1~2개 부족).
 
     - 냉장고가 비었으면 422 `EMPTY_FRIDGE`
-    - 결과가 부족하면 Claude가 레시피를 새로 만들어 저장한 뒤 포함한다 (`ai_generated=true`).
+    - 결과가 부족하면 AI(Gemini)가 레시피를 새로 만들어 저장한 뒤 포함한다 (`ai_generated=true`).
       이때 응답이 수~수십 초 걸릴 수 있음
     - '다른 레시피 추천받기': 이미 받은 id를 `exclude_ids=1&exclude_ids=5` 로 넘긴다
     """

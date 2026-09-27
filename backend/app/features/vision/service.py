@@ -10,7 +10,7 @@ from app.common.exceptions import ValidationError
 from app.common.time import today
 from app.features.ingredients import service as ingredients
 from app.features.ingredients.models import StorageType
-from app.features.vision.client import ClaudeVisionClient, MockVisionClient, VisionClient
+from app.features.vision.client import LLMVisionClient, MockVisionClient, VisionClient
 from app.features.vision.schemas import RecognizedItem, RecognizeResponse
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
@@ -20,7 +20,7 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 def get_client(db: Annotated[Session, Depends(get_db)]) -> VisionClient:
     if settings.AI_MOCK:
         return MockVisionClient()
-    return ClaudeVisionClient([p.name for p in ingredients.list_presets(db)])
+    return LLMVisionClient([p.name for p in ingredients.list_presets(db)])
 
 
 def recognize(db: Session, image: bytes, content_type: str, client: VisionClient) -> RecognizeResponse:

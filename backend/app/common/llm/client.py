@@ -1,17 +1,21 @@
-"""Claude API 공통 클라이언트.
+"""LLM(Gemini) 공통 클라이언트.
 
-기능 코드에서 anthropic SDK를 직접 import 하지 말고 `generate_structured()`만 사용한다.
+기능 코드에서 google-genai SDK를 직접 import 하지 말고 `generate_structured()`만 사용한다.
+공급자를 바꿀 때는 이 파일만 고치면 된다.
 """
 
 import base64
+import logging
 from functools import lru_cache
 from typing import TypeVar
 
-import anthropic
-from pydantic import BaseModel
+from google import genai
+from pydantic import BaseModel, ValidationError
 
 from app.common.config import settings
 from app.common.exceptions import AppError
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -22,17 +26,22 @@ class LLMError(AppError):
 
 
 @lru_cache
-def _client() -> anthropic.Anthropic:
-    # api_key=None 이면 SDK가 환경 변수 ANTHROPIC_API_KEY 등에서 자동으로 찾는다
-    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY or None, timeout=120.0)
+def _client() -> genai.Client:
+    # api_key=None 이면 SDK가 환경 변수 GEMINI_API_KEY 에서 자동으로 찾는다
+    return genai.Client(api_key=settings.GEMINI_API_KEY or None)
 
 
-def image_block(data: bytes, media_type: str) -> dict:
-    """이미지 바이트 → Claude 메시지 content 블록."""
-    return {
-        "type": "image",
-        "source": {"type": "base64", "media_type": media_type, "data": base64.standard_b64encode(data).decode()},
-    }
+def _schema(model: type[BaseModel]) -> dict:
+    """Pydantic JSON 스키마에서 Gemini가 지원하지 않을 수 있는 키(default)를 제거한다."""
+
+    def clean(node):
+        if isinstance(node, dict):
+            return {k: clean(v) for k, v in node.items() if k != "default"}
+        if isinstance(node, list):
+            return [clean(v) for v in node]
+        return node
+
+    return clean(model.model_json_schema())
 
 
 def generate_structured(
@@ -41,34 +50,39 @@ def generate_structured(
     *,
     system: str | None = None,
     images: list[tuple[bytes, str]] | None = None,
-    max_tokens: int = 16000,
 ) -> T:
-    """Claude에게 요청하고 응답을 output_type(Pydantic 모델)으로 검증해서 돌려준다.
+    """Gemini에게 요청하고 응답을 output_type(Pydantic 모델) JSON으로 받아 검증해서 돌려준다.
 
-    images: [(이미지 바이트, "image/jpeg"), ...] — 이미지는 텍스트 앞에 배치한다.
+    images: [(이미지 바이트, "image/jpeg"), ...]
     """
-    content: list[dict] = [image_block(data, media_type) for data, media_type in images or []]
-    content.append({"type": "text", "text": prompt})
+    content: list[dict] = [{"type": "text", "text": prompt}]
+    content += [
+        {"type": "image", "data": base64.b64encode(data).decode(), "mime_type": media_type}
+        for data, media_type in images or []
+    ]
 
-    kwargs = {"system": system} if system else {}
+    kwargs = {"system_instruction": system} if system else {}
     try:
-        response = _client().messages.parse(
+        interaction = _client().interactions.create(
             model=settings.LLM_MODEL,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": content}],
-            output_format=output_type,
-            # 안전 분류기가 요청을 거절하면 서버가 다른 모델로 자동 재시도
-            extra_headers={"anthropic-beta": "server-side-fallback-2026-07-01"},
-            extra_body={"fallbacks": "default"},
+            input=content,
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": _schema(output_type),
+            },
+            timeout=120,
             **kwargs,
         )
-    except anthropic.RateLimitError as e:
-        raise LLMError("AI 요청이 많아 잠시 후 다시 시도해주세요.") from e
-    except anthropic.APIConnectionError as e:
-        raise LLMError("AI 서버에 연결할 수 없습니다.") from e
-    except anthropic.APIStatusError as e:
-        raise LLMError(f"AI 요청 실패 ({e.status_code})") from e
+    except Exception as e:  # SDK 예외 클래스가 공개 경로로 제공되지 않아 상태 코드로 구분
+        status = getattr(e, "status_code", None) or getattr(e, "code", None)
+        logger.warning("LLM 호출 실패 (status=%s): %s", status, e)
+        if status == 429:
+            raise LLMError("AI 요청이 많아 잠시 후 다시 시도해주세요. (무료 등급 한도 초과일 수 있음)") from e
+        raise LLMError(f"AI 요청 실패 ({status or '연결 오류'})") from e
 
-    if response.stop_reason == "refusal" or response.parsed_output is None:
-        raise LLMError("AI가 이 요청을 처리하지 못했습니다.")
-    return response.parsed_output
+    try:
+        return output_type.model_validate_json(interaction.output_text or "")
+    except ValidationError as e:
+        logger.warning("LLM 응답 형식 오류: %s", interaction.output_text)
+        raise LLMError("AI 응답을 해석하지 못했습니다.") from e

@@ -1,4 +1,4 @@
-"""추천할 레시피가 부족할 때 Claude로 레시피를 실시간 생성한다. Claude 호출은 app.common.llm 을 통한다."""
+"""추천할 레시피가 부족할 때 AI(Gemini)로 레시피를 실시간 생성한다. LLM 호출은 app.common.llm 을 통한다."""
 
 from typing import Protocol
 
@@ -96,7 +96,7 @@ SYSTEM_PROMPT = (
 )
 
 
-class ClaudeRecipeGenerator:
+class LLMRecipeGenerator:
     """TODO(recipes): 실제 결과를 보며 프롬프트 튜닝 (재료 수량 현실성, 조리 순서 길이 등)"""
 
     def generate(self, req: GenerationRequest) -> list[GeneratedRecipe]:

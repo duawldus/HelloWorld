@@ -21,14 +21,14 @@ class Settings(BaseSettings):
     # 도메인 규칙
     IMMINENT_DAYS: int = 3  # D-3 이하를 '임박'으로 본다
 
-    # LLM (Claude API) — app/common/llm 에서만 사용
-    ANTHROPIC_API_KEY: str = ""
-    LLM_MODEL: str = "claude-opus-5"
+    # LLM (Gemini API) — app/common/llm 에서만 사용
+    GEMINI_API_KEY: str = ""
+    LLM_MODEL: str = "gemini-3.8-flash"  # 무료 등급 사용 가능
 
     # AI 사진 인식
-    AI_MOCK: bool = True  # True면 Claude 호출 없이 고정된 가짜 결과를 돌려준다 (프론트 개발용, 비용 0)
+    AI_MOCK: bool = True  # True면 Gemini 호출 없이 고정된 가짜 결과를 돌려준다 (프론트 개발용, 비용 0)
 
-    # AI 레시피 실시간 생성 — 추천 결과가 부족하면 Claude가 내 재료로 레시피를 만들어 DB에 저장
+    # AI 레시피 실시간 생성 — 추천 결과가 부족하면 Gemini가 내 재료로 레시피를 만들어 DB에 저장
     AI_RECIPE_ENABLED: bool = True
     AI_RECIPE_MIN_RESULTS: int = 3  # (바로 가능 + 1~2개 부족) 결과가 이보다 적으면 생성
     AI_RECIPE_COUNT: int = 2  # 한 번에 생성할 레시피 수

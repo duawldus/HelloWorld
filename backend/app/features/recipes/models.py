@@ -25,7 +25,7 @@ class Cookware(StrEnum):
 
 class RecipeSource(StrEnum):
     CURATED = "CURATED"  # 자체 큐레이션 (seeds)
-    AI = "AI"  # 추천할 레시피가 부족할 때 Claude가 실시간 생성해서 저장
+    AI = "AI"  # 추천할 레시피가 부족할 때 AI(Gemini)가 실시간 생성해서 저장
 
 
 class Recipe(TimestampMixin, Base):
