@@ -81,6 +81,13 @@ export function completeChore({ reminderId }) {
 
 // ----- 성과 -----
 
+// ⚠️ 백엔드가 아직 준비 중인 부분 (API는 200을 주지만 값이 채워지지 않음 → 화면에 '준비 중이에요')
+// - 연속 기록: gamification.service.touch_streak 가 TODO → current_streak/best_streak 가 항상 0
+// - 뱃지 획득: gamification.service.evaluate_badges 가 TODO → acquired 가 항상 false
+// 백엔드가 구현하면 true 로 바꾸세요. (요청서 frontend/BACKEND_REQUESTS.md)
+export const STREAK_READY = false
+export const BADGES_READY = false
+
 // GET /gamification/stats
 export function getStats() {
   return request('/gamification/stats')

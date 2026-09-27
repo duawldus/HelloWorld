@@ -20,6 +20,9 @@ export const colors = {
   text: '#1c1d2b',
   textSub: '#6b6f80',
   textOnPrimary: '#ffffff',
+  textOnPrimarySub: 'rgba(255, 255, 255, 0.85)', // 메인 색 카드 위의 작은 글씨
+  onPrimaryTrack: 'rgba(255, 255, 255, 0.3)', // 메인 색 카드 위 진행 바의 빈 부분
+  onPrimaryPill: 'rgba(255, 255, 255, 0.82)', // 메인 색 카드 위 밝은 알약 (예: 연속 기록)
 
   // 테두리
   border: '#dfe2ec',

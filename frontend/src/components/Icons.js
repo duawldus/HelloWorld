@@ -116,6 +116,63 @@ export function CheckIcon(props) {
   )
 }
 
+// ----- 성과 · 뱃지 -----
+
+export function FlameIcon(props) {
+  return (
+    <Icon size={16} color={colors.textOnPrimary} {...props}>
+      <Path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.3 2.3-5.4 3.6-7.3.4 1.6 1.3 2.7 2.4 3.2C11.6 7.6 12.6 5 14.8 3c.3 3.1 3.7 5.7 3.7 10.4 0 4.3-2.8 7.6-6.5 7.6z" />
+      <Path d="M12 21c-1.6 0-2.8-1.2-2.8-2.9 0-1.6 1.3-2.7 2.1-3.9.8 1.3 3.5 2.2 3.5 4.1 0 1.6-1.2 2.7-2.8 2.7z" />
+    </Icon>
+  )
+}
+
+export function LeafIcon(props) {
+  return (
+    <Icon color={colors.primary} {...props}>
+      <Path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z" />
+      <Path d="M5 19 13 11" />
+    </Icon>
+  )
+}
+
+export function ChefHatIcon(props) {
+  return (
+    <Icon color={colors.primary} {...props}>
+      <Path d="M7 14.5a4 4 0 0 1-.6-7.9A5.5 5.5 0 0 1 17 5.4a4 4 0 0 1 0 9.1V20H7z" />
+      <Path d="M7 17h10" />
+    </Icon>
+  )
+}
+
+export function BookIcon(props) {
+  return (
+    <Icon color={colors.primary} {...props}>
+      <Path d="M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2z" />
+      <Path d="M12 6.5v13" />
+    </Icon>
+  )
+}
+
+export function TrophyIcon(props) {
+  return (
+    <Icon color={colors.primary} {...props}>
+      <Path d="M8 4h8v5a4 4 0 0 1-8 0z" />
+      <Path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4" />
+      <Path d="M12 13v4M8.5 20h7M10 17h4" />
+    </Icon>
+  )
+}
+
+export function LockIcon(props) {
+  return (
+    <Icon color={colors.textSub} {...props}>
+      <Rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+      <Path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+    </Icon>
+  )
+}
+
 export function CloseIcon(props) {
   return (
     <Icon size={18} {...props}>

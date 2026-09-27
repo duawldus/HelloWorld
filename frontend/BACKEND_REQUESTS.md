@@ -47,3 +47,40 @@ export function consumeIngredient(id) {
 ```
 
 그 전까지 서버 모드에서 "다 먹었어요"를 누르면 "아직 서버에 준비되지 않은 기능이에요" 안내가 떠요. (가짜 모드는 동작)
+
+---
+
+## 2. 성과 · 뱃지 화면 (와이어프레임 8번)
+
+`GET /gamification/stats`, `/badges`, `/xp-logs`는 이미 잘 동작해요. 👍
+아래는 **API는 200을 주지만 값이 아직 채워지지 않는 부분**이에요. (코드의 `TODO(gamification)`)
+프론트는 서버 모드에서 이 영역만 "준비 중이에요"로 보여 주고 있어요.
+
+### 2-1. 연속 기록(streak) 갱신 — `touch_streak()`
+- 지금: 함수가 비어 있어서 `current_streak`, `best_streak`가 항상 0이에요.
+- 필요: XP를 얻을 때 `last_active_date`가 어제면 +1, 오늘이면 그대로, 그 외엔 1로 리셋. `best_streak` 갱신.
+- 화면: 레벨 카드 위 "7일 연속 기록중 · 역대 최고 12일"
+- 끝나면 프론트: `server/index.js`의 `STREAK_READY = true`
+
+### 2-2. 뱃지 지급 — `evaluate_badges()`
+- 지금: 빈 목록을 돌려줘서 `acquired`가 항상 `false`예요. (`progress` 숫자는 잘 나와요)
+- 필요: `progress >= threshold`이고 아직 없는 뱃지를 `UserBadge`로 지급하고, `acquired_at` 기록.
+- 화면: "획득한 뱃지 3 / 6" 그리드, 획득 알림(`xp.new_badges`)
+- 끝나면 프론트: `server/index.js`의 `BADGES_READY = true`
+
+### 2-3. 레벨 진행 바용 값 추가 (`GET /gamification/stats`)
+- 지금 `LevelSummary`에 **현재 레벨의 시작 XP**가 없어서, 프론트가 같은 레벨 표를 따로 들고 계산해요.
+- 제안: `level_min_xp: int` 추가 (예: Lv.3이면 200)
+  ```json
+  { "level": 3, "xp": 240, "level_min_xp": 200, "next_level_xp": 390, "xp_to_next_level": 150, ... }
+  ```
+- 프론트는 이미 `level_min_xp`가 오면 그 값을 먼저 쓰도록 돼 있어요. (`src/data/index.js`의 `getLevelProgress`)
+
+### 2-4. 뱃지 이름 오타 (`seeds/data.py`)
+- `"냉장고 클린러"` → **`"냉장고 클리너"`** (와이어프레임 표기)
+
+### 2-5. XP 기록 문구 형식 (요리 완료 구현할 때)
+성과 화면의 "최근 획득 XP"는 `xp-logs`의 `description`을 그대로 제목으로 보여 줘요.
+- 요리 완료: **`"{레시피 이름} 요리 완료"`** (예: `두부계란찜 요리 완료`)
+- 보너스: `"유통기한 내 소진 보너스"` — 프론트가 요리 완료 기록과 1분 안에 생긴 보너스를 한 줄로 합쳐요 (+20 XP)
+- (이미 있는 형식: 사진 `사진으로 재료 3개 등록`, 집안일 `세탁 완료`는 그대로 좋아요)

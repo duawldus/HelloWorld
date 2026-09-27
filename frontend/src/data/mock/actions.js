@@ -37,7 +37,7 @@ export async function completeCooking({ recipeName, ingredientIds = [] }) {
   )
 
   const savedInTime = used.some((item) => item.is_imminent && item.d_day >= 0)
-  const entries = [{ action: 'COOK_COMPLETE', description: `요리 완료: ${recipeName}` }]
+  const entries = [{ action: 'COOK_COMPLETE', description: `${recipeName} 요리 완료` }]
   if (savedInTime) entries.push({ action: 'EXPIRY_SAVE_BONUS', description: '유통기한 내 소진 보너스' })
 
   return {
@@ -53,6 +53,6 @@ export async function completeCooking({ recipeName, ingredientIds = [] }) {
 
 // POST /reminders/{id}/complete 와 같은 모양 ({ reminder, xp }). 가짜 모드는 알림 데이터가 없어 reminder 는 null
 export async function completeChore({ name }) {
-  const xp = await awardXp([{ action: 'CHORE_COMPLETE', description: `집안일 완료: ${name}` }])
+  const xp = await awardXp([{ action: 'CHORE_COMPLETE', description: `${name} 완료` }]) // 백엔드와 같은 '세탁 완료' 형식
   return { reminder: null, xp }
 }

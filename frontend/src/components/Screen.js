@@ -19,12 +19,13 @@ export function PageTitle({ children }) {
 }
 
 // 하위 화면 윗부분: 왼쪽 '<' 뒤로 가기, 오른쪽 제목
-export function BackHeader({ title }) {
+// fallback: 주소로 바로 열어서 돌아갈 화면이 없을 때 갈 곳
+export function BackHeader({ title, fallback = '/fridge' }) {
   return (
     <View style={styles.backHeader}>
       <Pressable
         style={styles.back}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/fridge'))}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
         accessibilityLabel="뒤로 가기"
         hitSlop={8}
       >

@@ -51,7 +51,7 @@ export function createDummyProgress() {
     streak: {
       current: 7,
       best: 12,
-      lastXpDate: yesterday, // 어제까지 7일 연속. 오늘 XP를 얻으면 8일이 됩니다.
+      lastXpDate: today, // 오늘까지 7일 연속 (와이어프레임 8번: '7일 연속 기록중 · 역대 최고 12일')
     },
     // 행동별 누적 횟수 (백엔드는 XP 기록을 세서 계산)
     counts: {
@@ -66,13 +66,12 @@ export function createDummyProgress() {
       HOME_COOK_MASTER: at(addDays(today, -4), '20:10:00'),
       STREAK_7: at(addDays(today, -2), '09:00:00'),
     },
-    // 최근 XP 기록 (최신순)
+    // 최근 XP 기록 (최신순). 성과 화면에서는 요리 완료 + 보너스가 한 줄로 합쳐져 3줄로 보임
     logs: [
-      log(5, 'COOK_COMPLETE', 10, '요리 완료: 김치볶음밥', yesterday, '19:20:00'),
-      log(4, 'EXPIRY_SAVE_BONUS', 10, '유통기한 내 소진 보너스', yesterday, '19:20:00'),
-      log(3, 'CHORE_COMPLETE', 5, '집안일 완료: 분리수거', yesterday, '09:10:00'),
-      log(2, 'PHOTO_REGISTER', 15, '사진으로 재료 3개 등록', addDays(today, -2), '18:05:00'),
-      log(1, 'COOK_COMPLETE', 10, '요리 완료: 계란말이', addDays(today, -3), '08:30:00'),
+      log(4, 'EXPIRY_SAVE_BONUS', 10, '유통기한 내 소진 보너스', today, '12:30:00'),
+      log(3, 'COOK_COMPLETE', 10, '두부계란찜 요리 완료', today, '12:30:00'),
+      log(2, 'PHOTO_REGISTER', 15, '사진으로 재료 3개 등록', yesterday, '18:05:00'),
+      log(1, 'CHORE_COMPLETE', 5, '분리수거 완료', addDays(today, -2), '09:10:00'),
     ],
   }
 }

@@ -112,7 +112,7 @@ result.reminder // 서버 모드: 바뀐 알림 정보 / 가짜 모드: null (�
 
 ```js
 result.xp.amount     // 이번에 얻은 XP (예: 20)
-result.xp.reasons    // ['요리 완료: 김치찌개', '유통기한 내 소진 보너스']
+result.xp.reasons    // ['김치찌개 요리 완료', '유통기한 내 소진 보너스']
 result.xp.level_up   // 레벨이 올랐으면 true
 result.xp.new_badges // 새로 딴 뱃지 이름 목록, 없으면 [] (예: ['집밥 마스터'])
 ```
@@ -138,8 +138,37 @@ const { acquired_count, total_count, badges } = await getBadges()
 // badges: [{ id, code, name, description, icon, acquired, acquired_at, progress, threshold }]
 
 const logs = await getXpLogs(20) // 최근 XP 기록 (최신순)
-// [{ id, action: 'COOK_COMPLETE', amount: 10, description: '요리 완료: 김치볶음밥', created_at }]
+// [{ id, action: 'COOK_COMPLETE', amount: 10, description: '두부계란찜 요리 완료', created_at }]
 ```
+
+화면에 보여 줄 때 쓰면 편한 도구:
+
+```js
+import { getLevelProgress, summarizeXpLogs, relativeDayLabel, STREAK_READY, BADGES_READY } from '../data'
+
+getLevelProgress(stats) // 지금 레벨 안에서 얼마나 찼는지 0~1 (예: 240 XP → 0.21). 진행 바 width 에 사용
+
+const rows = summarizeXpLogs(logs).slice(0, 5)
+// 요리 완료 + '유통기한 내 소진 보너스'를 한 줄로 합쳐 줌
+// [{ id, title: '두부계란찜 요리 완료', reasons: ['유통기한 내 소진 보너스'], amount: 20, created_at }]
+relativeDayLabel(rows[0].created_at) // '오늘' / '어제' / '2일 전'
+
+// 서버 모드에서 백엔드가 아직 준비 중인 값 (false 면 '준비 중이에요'로 보여 주세요)
+STREAK_READY // 연속 기록 (current_streak, best_streak)
+BADGES_READY // 뱃지 획득 여부 (acquired)
+```
+
+### 성과 · 뱃지 화면 열기 (홈 화면에서)
+
+```js
+import { router } from 'expo-router'
+
+<Pressable onPress={() => router.push('/achievements')}>
+  {/* 홈의 레벨 카드 등 */}
+</Pressable>
+```
+
+성과 화면은 들어올 때마다 최신 값을 다시 불러와요. (요리 완료 후 돌아와도 바로 반영)
 
 ## 6. 보유 양념 가져오기 (레시피 매칭)
 

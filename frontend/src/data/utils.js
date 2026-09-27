@@ -47,6 +47,48 @@ function parseDate(dateString) {
   return new Date(y, m - 1, d)
 }
 
+// 시각(ISO 글자) → '오늘' / '어제' / 'N일 전'
+// 백엔드는 시간대 없는 한국 시각('2026-09-27T12:30:00')을 주고, 폰의 시간대로 읽습니다.
+export function relativeDayLabel(isoString) {
+  const days = daysBetween(toDateString(new Date(isoString)), todayString())
+  if (days <= 0) return '오늘'
+  if (days === 1) return '어제'
+  return `${days}일 전`
+}
+
+// ----- XP 기록 -----
+// 최근 XP 기록을 화면에 보여 줄 줄로 묶습니다.
+// '요리 완료' 바로 뒤(1분 안)에 받은 '유통기한 내 소진 보너스'는 한 줄로 합칩니다.
+// 돌려주는 값: [{ id, title: '두부계란찜 요리 완료', reasons: ['유통기한 내 소진 보너스'], amount: 20, created_at }]
+export function summarizeXpLogs(logs) {
+  const rows = logs
+    .filter((log) => log.action !== 'EXPIRY_SAVE_BONUS')
+    .map((log) => ({
+      id: log.id,
+      title: log.description,
+      reasons: [],
+      amount: log.amount,
+      created_at: log.created_at,
+      action: log.action,
+    }))
+  for (const bonus of logs.filter((log) => log.action === 'EXPIRY_SAVE_BONUS')) {
+    const cook = rows.find(
+      (row) =>
+        row.action === 'COOK_COMPLETE' &&
+        Math.abs(new Date(row.created_at) - new Date(bonus.created_at)) <= 60 * 1000,
+    )
+    if (cook) {
+      cook.reasons.push(bonus.description)
+      cook.amount += bonus.amount
+    } else {
+      rows.push({ ...bonus, title: bonus.description, reasons: [], action: bonus.action })
+    }
+  }
+  return rows
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map(({ action, ...row }) => row)
+}
+
 // ----- 조사 -----
 // 받침에 따라 조사 붙이기. withJosa('대파', '을', '를') → '대파를', withJosa('계란', '이', '가') → '계란이'
 export function withJosa(word, withBatchim, withoutBatchim) {

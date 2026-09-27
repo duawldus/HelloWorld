@@ -34,8 +34,9 @@ export const LEVELS = [
 ]
 
 // 뱃지. condition 으로 진행 수치를 세고, threshold 이상이면 획득
+// (백엔드 seeds 는 '냉장고 클린러'로 오타 → 수정 요청함: frontend/BACKEND_REQUESTS.md)
 export const BADGES = [
-  { id: 1, code: 'FRIDGE_CLEANER', name: '냉장고 클린러', description: '유통기한 내 재료 소진 10회', icon: '🧹', condition: 'SAVED_BEFORE_EXPIRY', threshold: 10 },
+  { id: 1, code: 'FRIDGE_CLEANER', name: '냉장고 클리너', description: '유통기한 내 재료 소진 10회', icon: '🧹', condition: 'SAVED_BEFORE_EXPIRY', threshold: 10 },
   { id: 2, code: 'HOME_COOK_MASTER', name: '집밥 마스터', description: '요리 완료 10회', icon: '🍳', condition: 'COOK_COUNT', threshold: 10 },
   { id: 3, code: 'STREAK_7', name: '7일 연속 기록', description: '7일 연속 관리', icon: '🔥', condition: 'STREAK_DAYS', threshold: 7 },
   { id: 4, code: 'STREAK_30', name: '30일 연속', description: '30일 연속 관리', icon: '🏆', condition: 'STREAK_DAYS', threshold: 30 },

@@ -11,8 +11,10 @@ export {
   deleteIngredient,
 } from './ingredients.js'
 
-// 이 모드에서 '다 먹었어요'(소진)를 쓸 수 있는지
-export const CAN_CONSUME = true
+// 이 모드에서 쓸 수 있는 기능 (서버 모드는 백엔드가 준비될 때까지 false)
+export const CAN_CONSUME = true // '다 먹었어요'(소진)
+export const STREAK_READY = true // 연속 기록
+export const BADGES_READY = true // 뱃지 획득
 export { deductIngredients, completeCooking, completeChore } from './actions.js'
 export { getStats, getBadges, getXpLogs } from './gamification.js'
 export { recognizeIngredients } from './vision.js'

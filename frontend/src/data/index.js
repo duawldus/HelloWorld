@@ -7,6 +7,7 @@
 import { DATA_MODE, DEV_ALWAYS_SHOW_ONBOARDING } from './config.js'
 import * as mock from './mock/index.js'
 import * as server from './server/index.js'
+import { LEVELS } from './mock/rules.js'
 
 const impl = DATA_MODE === 'server' ? server : mock
 
@@ -32,6 +33,19 @@ export const completeChore = (...args) => impl.completeChore(...args)
 export const getStats = (...args) => impl.getStats(...args)
 export const getBadges = (...args) => impl.getBadges(...args)
 export const getXpLogs = (...args) => impl.getXpLogs(...args)
+
+export const STREAK_READY = impl.STREAK_READY // 연속 기록 값을 믿고 보여 줘도 되는지
+export const BADGES_READY = impl.BADGES_READY // 뱃지 획득 여부를 믿고 보여 줘도 되는지
+
+// 레벨 진행 바: 지금 레벨 안에서 얼마나 찼는지 (0~1). 최고 레벨이면 1
+// 백엔드 응답(getStats)에 '현재 레벨 시작 XP'가 없어서 백엔드와 같은 레벨 표(mock/rules.js)로 계산합니다.
+// (요청서에 level_min_xp 추가를 요청함. 생기면 그 값을 쓰도록 바꾸기)
+export function getLevelProgress(stats) {
+  if (stats.next_level_xp === null) return 1
+  const levelMinXp = stats.level_min_xp ?? LEVELS.find(([level]) => level === stats.level)?.[1] ?? 0
+  const range = stats.next_level_xp - levelMinXp
+  return range > 0 ? Math.min(1, Math.max(0, (stats.xp - levelMinXp) / range)) : 0
+}
 
 // 사진 인식
 export const recognizeIngredients = (...args) => impl.recognizeIngredients(...args)
@@ -76,4 +90,6 @@ export {
   addDays,
   daysUntil,
   withJosa,
+  relativeDayLabel,
+  summarizeXpLogs,
 } from './utils.js'

@@ -21,6 +21,7 @@
   - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀)
   - `(tabs)/_layout.js`: 하단 탭바 (홈/냉장고/레시피/생활알림)
   - `(tabs)/`: 탭바가 보이는 화면 (`index.js` 홈, `fridge.js` 냉장고, `recipe.js`, `alert.js`)
+  - `achievements.js`: 성과 · 뱃지 (홈에서 `router.push('/achievements')`, 탭바 없음)
   - `onboarding.js`: 온보딩 · 기본 양념 설정 (처음 켰을 때만. `(tabs)/_layout.js`가 온보딩 전이면 여기로 보냄, `?mode=edit`는 수정 모드)
   - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
