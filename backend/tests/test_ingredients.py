@@ -222,3 +222,46 @@ def test_deduct_is_all_or_nothing(client, device_headers):
     bad = client.post(f"{API}/deduct", json={"items": [{"id": egg["id"], "amount": 0}]}, headers=device_headers)
     assert bad.status_code == 422  # 0 이하는 뺄 수 없음
     assert client.post(f"{API}/deduct", json={"items": []}, headers=device_headers).status_code == 422
+
+
+def test_restore_ingredients_undo_cooking(client, db, device_headers):
+    """실제 restore_ingredients 로 요리 완료 → 실행 취소 (recipes 테스트는 가짜 함수를 쓰므로 여기서 확인)."""
+    from sqlalchemy import select
+
+    from app.features.recipes.models import Recipe
+
+    tofu = client.post(API, json={"name": "두부", "quantity": 2}, headers=device_headers).json()
+    egg = client.post(API, json={"name": "계란"}, headers=device_headers).json()
+    recipe_id = db.scalar(select(Recipe.id).where(Recipe.title == "두부계란찜"))
+    done = client.post(f"/api/v1/recipes/{recipe_id}/complete", headers=device_headers).json()
+    assert client.get(API, headers=device_headers).json()["total"] == 0
+
+    undo = client.post(f"/api/v1/recipes/cook-logs/{done['cook_log_id']}/undo", headers=device_headers)
+    assert undo.status_code == 200
+    assert set(undo.json()["restored_ingredient_ids"]) == {tofu["id"], egg["id"]}
+
+    fridge = {i["name"]: i for i in client.get(API, headers=device_headers).json()["items"]}
+    assert fridge["두부"]["quantity"] == 2 and fridge["두부"]["status"] == "ACTIVE"
+    assert fridge["계란"]["quantity"] == 10
+
+
+def test_restore_skips_discarded_and_others(db):
+    """취소 전에 '버렸어요' 한 재료와 남의 재료는 되살리지 않는다."""
+    from app.features.ingredients import service
+    from app.features.ingredients.models import IngredientStatus
+    from app.features.ingredients.schemas import IngredientCreate
+    from app.features.users.models import User
+
+    me, other = User(device_id="restore-test-0001"), User(device_id="restore-test-0002")
+    db.add_all([me, other])
+    db.flush()
+    a = service.create_ingredient(db, me, IngredientCreate(name="두부"), "MANUAL")
+    b = service.create_ingredient(db, me, IngredientCreate(name="대파"), "MANUAL")
+    c = service.create_ingredient(db, other, IngredientCreate(name="계란"), "MANUAL")
+    service.consume_ingredients(db, me, [a.id, b.id])
+    service.consume_ingredients(db, other, [c.id])
+    db.get(service.Ingredient, b.id).status = IngredientStatus.DISCARDED
+
+    snaps = [{"ingredient_id": i, "prev_quantity": 1, "prev_status": "ACTIVE"} for i in (a.id, b.id, c.id, 9999)]
+    assert service.restore_ingredients(db, me, snaps) == [a.id]
+    assert db.get(service.Ingredient, c.id).status == IngredientStatus.CONSUMED

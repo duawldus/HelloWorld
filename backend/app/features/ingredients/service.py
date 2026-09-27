@@ -218,6 +218,25 @@ def consume_ingredients(db: Session, user: User, ingredient_ids: list[int]) -> l
     return ingredients
 
 
+def restore_ingredients(db: Session, user: User, snapshots: list[dict]) -> list[int]:
+    """요리 완료 실행 취소용. 스냅샷대로 재료를 되돌린다. recipes 도메인이 사용하는 공개 함수.
+
+    snapshots: [{"ingredient_id": 3, "prev_quantity": 1.0, "prev_status": "ACTIVE", ...}]
+    commit 하지 않는다 (호출한 쪽에서 XP 회수까지 한 뒤 commit). 복구한 재료 id 목록을 반환한다.
+    남의 재료·없어진 재료와, 그 뒤에 '버렸어요'로 폐기한 재료는 되살리지 않고 건너뛴다.
+    """
+    restored = []
+    for snap in snapshots:
+        ingredient = db.get(Ingredient, snap["ingredient_id"])
+        if ingredient is None or ingredient.user_id != user.id or ingredient.status == IngredientStatus.DISCARDED:
+            continue
+        ingredient.status = IngredientStatus(snap["prev_status"])
+        ingredient.quantity = snap["prev_quantity"]
+        ingredient.consumed_at = None
+        restored.append(ingredient.id)
+    return restored
+
+
 def consume_ingredient(db: Session, user: User, ingredient_id: int) -> IngredientRead:
     """[화면 2] '다 먹었어요'. 폐기와 구분해서 소진으로 기록한다 (XP 없음)."""
     (ingredient,) = consume_ingredients(db, user, [ingredient_id])

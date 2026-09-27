@@ -247,7 +247,7 @@ backend/
   db.scalars(select(Ingredient).where(...))
   ```
 - **XP는 무조건 `gamification.service.award_xp()`로만** 바꿉니다. XP 수치는 `gamification/rules.py` 한 곳에서 관리해요.
-- 현재 공개 함수: `ingredients.list_active`, `ingredients.consume_ingredients`(요리 완료 시 재료 소진), `ingredients.deduct_ingredients`(수량 차감), `ingredients.find_preset_by_name`, `users.get_owned_seasoning_names`, `reminders.list_enabled`, `gamification.award_xp` / `evaluate_badges` / `get_level_summary`
+- 현재 공개 함수: `ingredients.list_active`, `ingredients.consume_ingredients`(요리 완료 시 재료 소진), `ingredients.deduct_ingredients`(수량 차감), `ingredients.restore_ingredients`(요리 완료 실행 취소 시 복구), `ingredients.find_preset_by_name`, `users.get_owned_seasoning_names`, `reminders.list_enabled`, `gamification.award_xp` / `evaluate_badges` / `get_level_summary`
 
 ### 3. 레이어 규칙
 
