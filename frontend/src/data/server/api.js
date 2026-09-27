@@ -64,12 +64,7 @@ async function loadOrCreateDeviceId() {
 }
 
 async function send(path, { method, query, body, form, deviceId }) {
-  const search = query
-    ? '?' +
-      new URLSearchParams(
-        Object.entries(query).filter(([, value]) => value !== undefined && value !== null),
-      )
-    : ''
+  const search = toQueryString(query)
   const headers = { 'X-Device-Id': deviceId }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
 
@@ -86,6 +81,22 @@ async function send(path, { method, query, body, form, deviceId }) {
       'NETWORK_ERROR',
     )
   }
+}
+
+// { q: '두부', exclude_ids: [1, 5] } → '?q=%EB%91%90%EB%B6%80&exclude_ids=1&exclude_ids=5'
+// 목록은 이름을 여러 번 붙여 보냅니다. (FastAPI 가 list 로 받는 방식)
+// 값이 undefined·null 이면 빼고, 빈 목록이면 아예 안 붙입니다.
+export function toQueryString(query) {
+  if (!query) return ''
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    const values = Array.isArray(value) ? value : [value]
+    for (const item of values) {
+      if (item !== undefined && item !== null) params.append(key, String(item))
+    }
+  }
+  const text = params.toString()
+  return text ? `?${text}` : ''
 }
 
 async function parse(response) {
