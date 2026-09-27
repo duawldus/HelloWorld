@@ -345,14 +345,6 @@ def _consume(db: Session, user: User, ingredient_ids: list[int]) -> list[dict]:
     ]
 
 
-def _restore(db: Session, user: User, snapshots: list[dict]) -> list[int]:
-    """ingredients 도메인(염지연)의 복구 함수 호출. 합치기 전이면 501."""
-    fn = getattr(ingredients, "restore_ingredients", None)
-    if fn is None:
-        raise NotImplementedError("재료 복구 기능(ingredients.restore_ingredients)을 합치는 중이에요.")
-    return fn(db, user, snapshots)
-
-
 def _auto_targets(db: Session, user: User, recipe: Recipe) -> list[int]:
     """레시피 재료(양념 제외)마다 내 냉장고에서 가장 급한 재료 하나씩 고른다 (대체재 포함)."""
     active = ingredients.list_active(db, user.id)  # 유통기한 임박순
@@ -426,7 +418,7 @@ def undo_cooking(db: Session, user: User, cook_log_id: int) -> CookUndoResponse:
     if cook_log.undone_at is not None:
         raise ConflictError("이미 취소된 요리예요.", code="ALREADY_UNDONE")
 
-    restored = _restore(db, user, cook_log.consumed_snapshot)
+    restored = ingredients.restore_ingredients(db, user, cook_log.consumed_snapshot)
     revoked = gamification.revoke_xp(db, user, COOK_XP_ACTIONS, ref_id=cook_log.id)
     cook_log.undone_at = now()
     db.commit()

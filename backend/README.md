@@ -136,7 +136,7 @@ backend/
 | `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 염지연 | ✅ | 실제 사진 인식 확인 완료 (응답 10~25초). 사진을 더 모아 `needs_review` 기준(0.8) 조정 |
 | `users` | 0 온보딩 · 기본 양념 | 우시연 | ✅ | |
 | `home` | 1 홈 대시보드 | 우시연 | ✅ | |
-| `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절·요리 완료·실행 취소 완료 → **`ingredients` 복구 함수 합치기 대기**(실행 취소), AI 프롬프트 튜닝 |
+| `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | AI 프롬프트 튜닝 (`python -m scripts.eval_recipe_prompt`) |
 | `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | |
 | `gamification` | 8 성과 · 뱃지 | 우시연 | ✅ | |
 | `notifications` | 9 푸시 알림 | 우시연 | ✅ | 실기기에서 `PUSH_ENABLED=true`로 발송 확인 |
@@ -147,13 +147,7 @@ backend/
 
 ### 경계가 겹치는 곳
 
-- `recipes`(우시연)는 냉장고 재료를 `ingredients.list_active()`로 읽고, 요리 완료 때 **`ingredients.consume_ingredients(db, user, ids)`**(염지연, 합쳐짐)로 재료를 소진해요. 실행 취소에 쓸 **복구 함수는 아직 없어서** 지금은 501이 나가고, 아래 모양으로 합쳐지면 코드 수정 없이 바로 동작해요.
-  ```python
-  # app/features/ingredients/service.py (염지연)
-  def restore_ingredients(db, user: User, snapshots: list[dict]) -> list[int]:
-      """스냅샷([{"ingredient_id", "name", "expires_on", "prev_quantity", "prev_status"}])대로 status·quantity 복구, consumed_at=None. commit 하지 않음. 복구한 id 반환"""
-  ```
-  합친 뒤에는 `tests/test_cooking.py`의 `fake_restore` 픽스처와 501 테스트를 지우면 돼요.
+- `recipes`(우시연)는 냉장고 재료를 `ingredients.list_active()`로 읽고, 요리 완료 때 **`ingredients.consume_ingredients(db, user, ids)`**(염지연, 합쳐짐)로 재료를 소진해요. 실행 취소 때는 **`ingredients.restore_ingredients(db, user, snapshots)`**(염지연, 합쳐짐)로 되돌려요. 그사이 '버렸어요'로 폐기한 재료는 되살리지 않아요.
 - `ingredients`·`vision`(염지연)이 XP를 줄 때는 `gamification.award_xp()`만 호출해요. XP 수치는 우시연이 `rules.py`에서 관리.
 
 ---
@@ -180,7 +174,7 @@ backend/
 | recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족, 부족하면 AI 생성) | ✅ |
 | | GET | `/recipes/{id}?servings=` | 상세 (인분 환산된 재료, 보유/부족/대체재, 조리 순서) | ✅ |
 | | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP (임박 재료면 보너스) | ✅ |
-| | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 → 재료 복구 + XP 회수 | ✅ (복구 함수 합치기 전엔 501) |
+| | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 → 재료 복구 + XP 회수 | ✅ |
 | reminders | GET | `/reminders` | 카테고리별 목록 + 다음 알림 | ✅ |
 | | POST | `/reminders` | 알림 추가 | ✅ |
 | | GET / PATCH / DELETE | `/reminders/{id}` | 조회 / 수정·토글 / 삭제 | ✅ |

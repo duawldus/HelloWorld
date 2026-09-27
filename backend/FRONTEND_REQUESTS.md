@@ -140,7 +140,7 @@ export async function deductIngredients(usedList) {
 
 ---
 
-## 4. 요리 완료 · 실행 취소 API ✅ (실행 취소는 재료 복구 기능 합치기 전까지 501)
+## 4. 요리 완료 · 실행 취소 API ✅
 
 프론트에서 이미 호출하고 계신 모양 그대로입니다.
 
@@ -164,8 +164,8 @@ export async function deductIngredients(usedList) {
 - 응답: `{"cook_log_id": 3, "restored_ingredient_ids": [1, 2], "xp_revoked": 20}`
 - 이미 취소한 요리면 `409`, `code: "ALREADY_UNDONE"`
 
-> ⚠️ 재료 소진·복구는 `ingredients` 담당(염지연)의 함수를 사용합니다. 소진 함수는 합쳐졌고, **복구 함수가 합쳐지기 전까지 실행 취소만 501**을 반환합니다.
-> (프론트는 501을 "아직 서버에 준비되지 않은 기능이에요"로 보여 주고 계셔서 따로 처리하실 필요는 없습니다)
+> 재료 소진·복구는 `ingredients` 담당(염지연)의 함수를 사용합니다. **실행 취소도 이제 501 없이 동작합니다.**
+> 요리 완료 뒤 '버렸어요'로 폐기한 재료는 되살리지 않아서, `restored_ingredient_ids`가 소진했던 재료보다 적을 수 있습니다.
 
 ---
 
