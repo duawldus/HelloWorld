@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     # AI 사진 인식
     AI_MOCK: bool = True  # True면 Claude 호출 없이 고정된 가짜 결과를 돌려준다 (프론트 개발용, 비용 0)
+
+    # AI 레시피 실시간 생성 — 추천 결과가 부족하면 Claude가 내 재료로 레시피를 만들어 DB에 저장
+    AI_RECIPE_ENABLED: bool = True
+    AI_RECIPE_MIN_RESULTS: int = 3  # (바로 가능 + 1~2개 부족) 결과가 이보다 적으면 생성
+    AI_RECIPE_COUNT: int = 2  # 한 번에 생성할 레시피 수
     AI_LOW_CONFIDENCE: float = 0.80  # 이 값 미만이면 needs_review=True (와이어프레임: 72% → 확인 필요)
 
     # 푸시 알림 스케줄러

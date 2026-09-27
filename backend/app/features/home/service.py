@@ -5,6 +5,7 @@ from datetime import datetime, time, timedelta
 from sqlalchemy.orm import Session
 
 from app.common.config import settings
+from app.common.exceptions import ValidationError
 from app.common.time import d_day, now
 from app.features.gamification import service as gamification
 from app.features.home.schemas import FridgeSummary, HomeResponse, ImminentAlert, TodayChore
@@ -20,9 +21,10 @@ CHORE_WINDOW_DAYS = 1  # 오늘/내일(D-0, D-1) 해야 할 일만 노출
 
 def _today_recipe(db: Session, user: User) -> RecipeCard | None:
     try:
+        # 홈은 빨리 떠야 하므로 AI 생성 없이 (generator 미전달)
         result = recipes.recommend(db, user, RecommendQuery(limit=1))
-    except NotImplementedError:
-        return None  # TODO(home): recipes.recommend 구현되면 이 try 제거
+    except ValidationError:
+        return None  # 냉장고가 비어 있음
     return next(iter(result.ready + result.almost), None)
 
 

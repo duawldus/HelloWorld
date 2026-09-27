@@ -9,9 +9,11 @@ class RecommendQuery(BaseModel):
 
     imminent_first: bool = Field(True, description="임박 재료 먼저")
     max_minutes: int | None = Field(None, ge=1, description="예: 15 → 15분 이내")
-    servings: int | None = Field(None, ge=1, description="인분 수")
-    cookware: Cookware | None = None
-    limit: int = Field(10, ge=1, le=50)
+    cookware: Cookware | None = Field(None, description="조리도구 필터 (원팬/전자레인지/냄비)")
+    servings: int = Field(1, ge=1, le=10, description="인분 수 (카드에 표시, 상세 조회 시 그대로 넘기면 됨)")
+    exclude_ids: list[int] = Field([], description="'다른 레시피 추천받기' — 이미 보여준 레시피 id")
+    limit: int = Field(10, ge=1, le=50, description="ready / almost 각각 최대 개수")
+    allow_ai: bool = Field(True, description="결과가 부족하면 Claude로 레시피를 새로 생성할지")
 
 
 class IngredientTag(BaseModel):
@@ -27,6 +29,7 @@ class RecipeCard(BaseModel):
     cook_minutes: int
     difficulty: Difficulty
     servings: int
+    is_ai_generated: bool  # Claude가 생성한 레시피
     uses_imminent: bool  # '임박재료 사용' 뱃지
     imminent_count: int  # 홈: '임박재료 2개 사용'
     missing_count: int  # 0 = 바로 만들 수 있어요
@@ -37,11 +40,14 @@ class RecommendResponse(BaseModel):
     basis_ingredient_count: int  # '내 냉장고 재료 N개를 기준으로 추천했어요'
     ready: list[RecipeCard]  # 바로 만들 수 있어요 (missing 0)
     almost: list[RecipeCard]  # 1~2개만 더 있으면
+    ai_generated: bool  # 이번 요청에서 Claude가 새 레시피를 만들었는지 (FE: 'AI가 새 레시피를 만들었어요' 안내)
 
 
 class ChecklistItem(BaseModel):
     name: str
-    amount: str | None
+    amount: str  # 요청한 인분으로 환산된 표시용 문자열 ("1과 1/2모", "약간")
+    quantity: float | None  # 환산된 수량 (없으면 None)
+    unit: str | None
     owned: bool
     is_seasoning: bool
     is_optional: bool
@@ -63,7 +69,9 @@ class RecipeDetail(BaseModel):
     image_url: str | None
     cook_minutes: int
     difficulty: Difficulty
-    servings: int
+    servings: int  # 요청한 인분 (기본 1)
+    base_servings: int  # 레시피 원래 기준 인분
+    is_ai_generated: bool
     checklist: list[ChecklistItem]
     steps: list[RecipeStepRead]
 

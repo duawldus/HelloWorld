@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.common.deps import CurrentUser, DbSession
 from app.features.recipes import service
+from app.features.recipes.generator import RecipeGenerator
 from app.features.recipes.schemas import (
     CookCompleteRequest,
     CookCompleteResponse,
@@ -19,15 +20,31 @@ router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
 @router.get("/recommendations", response_model=RecommendResponse)
-def recommend(db: DbSession, user: CurrentUser, query: Annotated[RecommendQuery, Depends()]):
-    """내 냉장고 + 기본 양념 기준 추천. ready(바로 가능) / almost(1~2개 부족)."""
-    return service.recommend(db, user, query)
+def recommend(
+    db: DbSession,
+    user: CurrentUser,
+    query: Annotated[RecommendQuery, Query()],
+    generator: Annotated[RecipeGenerator, Depends(service.get_generator)],
+):
+    """내 냉장고 + 기본 양념 기준 추천. ready(바로 가능) / almost(1~2개 부족).
+
+    - 냉장고가 비었으면 422 `EMPTY_FRIDGE`
+    - 결과가 부족하면 Claude가 레시피를 새로 만들어 저장한 뒤 포함한다 (`ai_generated=true`).
+      이때 응답이 수~수십 초 걸릴 수 있음
+    - '다른 레시피 추천받기': 이미 받은 id를 `exclude_ids=1&exclude_ids=5` 로 넘긴다
+    """
+    return service.recommend(db, user, query, generator)
 
 
 @router.get("/{recipe_id}", response_model=RecipeDetail)
-def get_detail(recipe_id: int, db: DbSession, user: CurrentUser):
-    """재료 체크리스트(보유/부족/대체재) + 조리 순서."""
-    return service.get_detail(db, user, recipe_id)
+def get_detail(
+    recipe_id: int,
+    db: DbSession,
+    user: CurrentUser,
+    servings: int = Query(1, ge=1, le=10, description="몇 인분으로 볼지 (기본 1인분)"),
+):
+    """재료 체크리스트(보유/부족/대체재, 인분 환산된 양) + 조리 순서."""
+    return service.get_detail(db, user, recipe_id, servings)
 
 
 @router.post("/{recipe_id}/complete", response_model=CookCompleteResponse)

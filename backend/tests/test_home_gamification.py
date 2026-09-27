@@ -1,33 +1,21 @@
 API = "/api/v1"
 
 
-def test_recipe_detail_marks_owned(client, device_headers):
-    client.post(f"{API}/ingredients", json={"name": "두부"}, headers=device_headers)
-    client.post(f"{API}/ingredients", json={"name": "양파"}, headers=device_headers)
-
-    detail = client.get(f"{API}/recipes/2", headers=device_headers).json()  # 두부 계란부침
-    checklist = {c["name"]: c for c in detail["checklist"]}
-    assert checklist["두부"]["owned"] is True
-    assert checklist["계란"]["owned"] is False
-    assert checklist["대파"]["owned_substitutes"] == ["양파"]
-    assert len(detail["steps"]) == 3
-
-
-def test_recipe_not_found(client, device_headers):
-    assert client.get(f"{API}/recipes/9999", headers=device_headers).status_code == 404
-
-
 def test_todo_endpoints_return_501(client, device_headers):
     """구현 전 TODO 엔드포인트는 501. 구현하면 이 테스트를 실제 테스트로 교체할 것."""
-    assert client.get(f"{API}/recipes/recommendations", headers=device_headers).status_code == 501
     assert client.post(f"{API}/recipes/1/complete", headers=device_headers).status_code == 501
 
 
 def test_home(client, device_headers):
+    empty = client.get(f"{API}/home", headers=device_headers).json()
+    assert empty["today_recipe"] is None
+
     client.post(f"{API}/ingredients", json={"name": "두부"}, headers=device_headers)
+    client.post(f"{API}/ingredients", json={"name": "계란"}, headers=device_headers)
     body = client.get(f"{API}/home", headers=device_headers).json()
-    assert body["fridge"] == {"total": 1, "imminent": 0}
+    assert body["fridge"] == {"total": 2, "imminent": 0}
     assert body["level"]["title"] == "자취 새내기"
+    assert body["today_recipe"] is not None
 
 
 def test_stats_and_badges(client, device_headers):

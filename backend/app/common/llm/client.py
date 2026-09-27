@@ -24,7 +24,7 @@ class LLMError(AppError):
 @lru_cache
 def _client() -> anthropic.Anthropic:
     # api_key=None 이면 SDK가 환경 변수 ANTHROPIC_API_KEY 등에서 자동으로 찾는다
-    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY or None, timeout=60.0)
+    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY or None, timeout=120.0)
 
 
 def image_block(data: bytes, media_type: str) -> dict:
@@ -41,7 +41,7 @@ def generate_structured(
     *,
     system: str | None = None,
     images: list[tuple[bytes, str]] | None = None,
-    max_tokens: int = 4096,
+    max_tokens: int = 16000,
 ) -> T:
     """Claude에게 요청하고 응답을 output_type(Pydantic 모델)으로 검증해서 돌려준다.
 

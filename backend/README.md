@@ -60,7 +60,7 @@ uvicorn app.main:app --reload
 ```
 
 - Swagger 문서: http://localhost:8000/docs ← **프론트와 API 확인은 여기서**
-- 서버가 처음 뜰 때 테이블 생성 + 기본 데이터(양념 12종, 재료 프리셋 27종, 레시피 7개, 뱃지 6개)가 자동으로 들어갑니다.
+- 서버가 처음 뜰 때 테이블 생성 + 기본 데이터(양념 12종, 재료 프리셋 27종, 레시피 28개, 뱃지 6개)가 자동으로 들어갑니다.
 
 ### 사용자 구분 (로그인 없음)
 
@@ -134,8 +134,8 @@ backend/
 | `ingredients` | 2 냉장고, 3 식재료 추가 | 팀원 | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
 | `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 팀원 | 🚧 | Claude 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
 | `users` | 0 온보딩 · 기본 양념 | WSY129 | ✅ | |
-| `home` | 1 홈 대시보드 | WSY129 | ✅ | recipes 추천 완성되면 `_today_recipe`의 try 제거 |
-| `recipes` | 4 레시피 추천, 5 레시피 상세 | WSY129 | 🚧 | **추천 알고리즘**, **요리 완료(재료 소진 + XP)**, **실행 취소** |
+| `home` | 1 홈 대시보드 | WSY129 | ✅ | |
+| `recipes` | 4 레시피 추천, 5 레시피 상세 | WSY129 | 🚧 | 추천·AI 생성·인분 조절 완료 → **요리 완료(재료 소진 + XP)**, **실행 취소**, AI 프롬프트 튜닝 |
 | `reminders` | 6 생활 알림, 7 알림 추가 | WSY129 | ✅ | 같은 회차 중복 완료 방지 |
 | `gamification` | 8 성과 · 뱃지 | WSY129 | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
 | `notifications` | 9 푸시 알림 | WSY129 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
@@ -168,8 +168,8 @@ backend/
 | | POST | `/ingredients/batch` | 여러 개 일괄 등록 (사진이면 +15 XP) | ✅ |
 | | GET / PATCH / DELETE | `/ingredients/{id}` | 조회 / 수정 / 삭제 | ✅ |
 | vision | POST | `/vision/recognize` | 사진 → 재료 후보 + 신뢰도 (multipart `image`) | ✅ (튜닝 TODO) |
-| recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족) | 🚧 |
-| | GET | `/recipes/{id}` | 상세 (보유/부족/대체재 체크리스트, 조리 순서) | ✅ |
+| recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족, 부족하면 AI 생성) | ✅ |
+| | GET | `/recipes/{id}?servings=` | 상세 (인분 환산된 재료, 보유/부족/대체재, 조리 순서) | ✅ |
 | | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP | 🚧 |
 | | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 | 🚧 |
 | reminders | GET | `/reminders` | 카테고리별 목록 + 다음 알림 | ✅ |
@@ -303,11 +303,21 @@ git push origin backend                         # 3. push → GitHub에서 main�
 **Q. 레시피 · 프리셋 데이터를 바꾸고 싶어요.**
 → `app/seeds/data.py` 수정 → `rm bangguseok.db` → 재시작.
 
-**Q. 추천 API가 501을 줘요.**
-→ 아직 TODO입니다. `app/features/recipes/service.py`의 `recommend()` docstring에 구현 순서가 정리돼 있어요.
+**Q. 레시피 추천은 어떻게 동작해요?**
+→ `app/features/recipes/service.py`의 `recommend()`
+1. 내 냉장고 재료 + 기본 양념으로 레시피마다 부족 재료를 계산 (대체재가 있으면 가진 걸로, 선택 재료는 제외)
+2. 부족 0개 → `ready`(바로 가능), 1~2개 → `almost`, 3개 이상이거나 내 재료를 하나도 안 쓰면 제외
+3. 정렬: 임박 재료를 많이 쓸수록 → 더 급한 재료를 쓸수록 → 부족한 게 적을수록 → 빨리 만들수록
+4. 결과가 `AI_RECIPE_MIN_RESULTS`(기본 3)개보다 적으면 **Claude가 내 재료로 레시피를 만들어 DB에 저장**하고 다시 추천 (`source=AI`, 다른 사용자도 재사용)
+   - 홈 화면의 '오늘의 추천 레시피'는 빨리 떠야 해서 AI 생성 없이 추천만 해요
+   - Claude 호출이 실패해도 추천은 기존 레시피로 정상 응답
 
-**Q. 실제 Claude로 사진 인식을 테스트하려면?**
-→ `.env`에 `AI_MOCK=false`, `ANTHROPIC_API_KEY=...` 설정 후 Swagger에서 `/vision/recognize`에 사진 업로드. 모델은 `LLM_MODEL`(기본 `claude-opus-5`)로 바꿀 수 있어요. 호출할 때마다 API 비용이 나가니 평소엔 `AI_MOCK=true`로 두세요.
+**Q. 레시피 재료 양을 인분별로 어떻게 저장해요?**
+→ `recipe_ingredients`에 1인분 기준 `quantity`(0.5) + `unit`(모)로 저장하고, `GET /recipes/{id}?servings=3`이면 3배 해서 `"1과 1/2모"`처럼 보여줘요. `quantity`가 없으면(`약간`, `적당량`) 그대로 표시.
+
+**Q. 실제 Claude로 사진 인식 · 레시피 생성을 테스트하려면?**
+→ `.env`에 `AI_MOCK=false`, `ANTHROPIC_API_KEY=...` 설정 후 Swagger에서 `/vision/recognize`에 사진 업로드, 또는 레시피에 잘 안 나오는 재료(예: 고추)만 등록하고 `/recipes/recommendations` 호출.
+`AI_MOCK=true`(기본)면 레시피 생성도 가짜("<재료> 볶음")로 만들어져요. 모델은 `LLM_MODEL`(기본 `claude-opus-5`)로 바꿀 수 있어요. 호출할 때마다 API 비용이 나가니 평소엔 `AI_MOCK=true`로 두세요.
 
 **Q. 푸시 알림 잡을 로컬에서 돌려보려면?**
 → `.env`에 `SCHEDULER_ENABLED=true`. 지금은 `LoggingPushSender`라서 실제 발송 없이 로그만 찍혀요.
@@ -320,6 +330,5 @@ git push origin backend                         # 3. push → GitHub에서 main�
 - [ ] 레벨 구간 · 칭호 (`gamification/rules.py`의 `LEVELS`)
 - [ ] "연속 기록"을 이어주는 행동이 무엇인지 (요리만? 재료 등록·집안일 포함?)
 - [ ] 요리 완료 시 재료를 **통째로 소진**할지 **수량만 차감**할지
-- [ ] 레시피: 자체 큐레이션(지금 7개 → 목표 20~30개)만 쓸지, Claude 실시간 생성도 할지
 - [ ] 절약 추정 식비 계산 기준 (지금은 1회당 2,300원 가정)
 - [ ] 사진 인식 모델: 비용을 줄이려면 `LLM_MODEL`을 더 저렴한 모델로 바꿀지

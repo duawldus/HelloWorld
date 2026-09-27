@@ -23,8 +23,13 @@ class Cookware(StrEnum):
     POT = "POT"
 
 
-class Recipe(Base):
-    """자체 큐레이션 레시피 (seeds). TODO(recipes): LLM 실시간 생성 레시피를 저장할지 결정."""
+class RecipeSource(StrEnum):
+    CURATED = "CURATED"  # 자체 큐레이션 (seeds)
+    AI = "AI"  # 추천할 레시피가 부족할 때 Claude가 실시간 생성해서 저장
+
+
+class Recipe(TimestampMixin, Base):
+    """레시피. 재료 수량은 servings(기본 1인분) 기준이고, 상세 조회 시 원하는 인분으로 환산한다."""
 
     __tablename__ = "recipes"
 
@@ -36,6 +41,8 @@ class Recipe(Base):
     difficulty: Mapped[Difficulty] = mapped_column(String(10), default=Difficulty.EASY)
     servings: Mapped[int] = mapped_column(default=1)
     cookware: Mapped[Cookware] = mapped_column(String(10), default=Cookware.ANY)
+    source: Mapped[RecipeSource] = mapped_column(String(10), default=RecipeSource.CURATED, index=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), default=None)
 
     ingredients: Mapped[list["RecipeIngredient"]] = relationship(
         back_populates="recipe", cascade="all, delete-orphan", order_by="RecipeIngredient.id"
@@ -51,7 +58,9 @@ class RecipeIngredient(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     recipe_id: Mapped[int] = mapped_column(ForeignKey("recipes.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(30))  # 사용자 재료/양념과 이름으로 매칭
-    amount: Mapped[str | None] = mapped_column(String(30), default=None)  # "1모", "2큰술"
+    # 기준 인분(Recipe.servings)의 양. quantity=None 이면 '약간', '적당량' 처럼 unit만 표시
+    quantity: Mapped[float | None] = mapped_column(default=None)  # 0.5
+    unit: Mapped[str | None] = mapped_column(String(10), default=None)  # "모", "큰술", "약간"
     is_seasoning: Mapped[bool] = mapped_column(default=False)
     is_optional: Mapped[bool] = mapped_column(default=False)
     substitutes: Mapped[list[str]] = mapped_column(JSON, default=list)  # 대체 가능 재료 ["쪽파", "양파"]

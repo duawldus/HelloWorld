@@ -38,15 +38,21 @@ def seed_all(db: Session) -> None:
             db.add(
                 Recipe(
                     title=r["title"],
+                    description=r.get("description"),
                     cook_minutes=r["cook_minutes"],
                     difficulty=r["difficulty"],
                     cookware=r["cookware"],
                     servings=r.get("servings", 1),
                     ingredients=[
                         RecipeIngredient(
-                            name=name, amount=amount, is_seasoning=seasoning, is_optional=optional, substitutes=subs
+                            name=name,
+                            quantity=qty,
+                            unit=unit,
+                            is_seasoning=seasoning,
+                            is_optional=optional,
+                            substitutes=subs,
                         )
-                        for name, amount, seasoning, optional, subs in r["ingredients"]
+                        for name, qty, unit, seasoning, optional, subs in r["ingredients"]
                     ],
                     steps=[RecipeStep(step_no=i + 1, description=d) for i, d in enumerate(r["steps"])],
                 )
