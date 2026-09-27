@@ -6,6 +6,7 @@
 - 와이어프레임: https://claude.ai/artifact/DAF8NvnekfBwcPBf7xCVKT
 - 기획안(Notion): https://app.notion.com/p/IDLE-3e35a77378fe8001a701e568e433f90b
 - 팀 공통 규칙: 루트의 [`CLAUDE.md`](../CLAUDE.md), [`README.md`](../README.md)
+- **프론트엔드 요청서:** [`FRONTEND_REQUESTS.md`](FRONTEND_REQUESTS.md) — 백엔드 변경으로 프론트에서 수정이 필요한 부분 (⚠️ `X-Device-Id` 헤더)
 
 ---
 
