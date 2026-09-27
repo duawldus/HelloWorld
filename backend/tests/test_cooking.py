@@ -4,8 +4,8 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from app.common.time import today
-from app.features.recipes.models import Recipe
+from app.common.time import now, today
+from app.features.recipes.models import CookLog, Recipe
 
 API = "/api/v1"
 
@@ -85,3 +85,29 @@ def test_undo_restores_everything(client, db, device_headers):
         f"{API}/recipes/cook-logs/{done['cook_log_id']}/undo", headers={"X-Device-Id": "someone-else-01"}
     )
     assert other.status_code == 404
+
+
+def test_save_bonus_daily_limit(client, db, device_headers):
+    rid = _recipe_id(db, "두부계란찜")
+    amounts, capped = [], []
+    for _ in range(4):
+        _add(client, device_headers, "두부", days=0)
+        _add(client, device_headers, "계란")
+        body = client.post(f"{API}/recipes/{rid}/complete", headers=device_headers).json()
+        amounts.append(body["xp"]["amount"])
+        capped.append(body["bonus_capped"])
+    # 보너스는 하루 3번까지, 4번째는 요리 완료 XP만
+    assert amounts == [20, 20, 20, 10]
+    assert capped == [False, False, False, True]
+    assert client.get(f"{API}/gamification/stats", headers=device_headers).json()["saved_count"] == 3
+
+
+def test_undo_expires_after_24_hours(client, db, device_headers):
+    _add(client, device_headers, "두부")
+    done = client.post(f"{API}/recipes/{_recipe_id(db, '두부조림')}/complete", headers=device_headers).json()
+    cook_log = db.get(CookLog, done["cook_log_id"])
+    cook_log.created_at = now() - timedelta(hours=25)
+    db.commit()
+
+    res = client.post(f"{API}/recipes/cook-logs/{done['cook_log_id']}/undo", headers=device_headers)
+    assert res.status_code == 409 and res.json()["code"] == "UNDO_EXPIRED"

@@ -30,7 +30,8 @@
 | Language | Python 3.11+ |
 | Framework | FastAPI |
 | ORM | SQLAlchemy 2.0 |
-| DB | **SQLite** (개발 단계. 추후 PostgreSQL + Alembic 전환 예정 — `DATABASE_URL`만 바꾸면 됨) |
+| DB | **SQLite** (개발 단계. 추후 PostgreSQL 전환 예정 — `DATABASE_URL`만 바꾸면 됨) |
+| 마이그레이션 | **Alembic** — 서버 시작 때 자동 적용 |
 | LLM | **Gemini API** (`google-genai` SDK, 무료 등급) — `app/common/llm`을 통해서만 호출 |
 | 사용자 식별 | **로그인 없음** — 기기 고유 ID를 `X-Device-Id` 헤더로 전송 |
 | 푸시 알림 | Expo Push (`PUSH_ENABLED=true`일 때 실제 발송, 아니면 로그만) |
@@ -92,6 +93,7 @@ backend/
 │   ├── main.py               # 앱 생성, 라우터 등록
 │   ├── models.py             # 모든 모델 import (테이블 생성용)
 │   ├── scheduler.py          # 푸시 알림 스케줄러
+│   ├── migrate.py            # 서버 시작 때 DB를 최신 구조로 (Alembic)
 │   ├── common/
 │   │   ├── db/               # 🔒 DB 공통 모듈 (엔진, 세션, Base) — 담당자 외 수정 금지
 │   │   ├── llm/              # 🔒 LLM(Gemini) 공통 모듈 — 담당자 외 수정 금지
@@ -111,6 +113,7 @@ backend/
 │   │   ├── gamification/     #   XP, 레벨, 연속 기록, 뱃지
 │   │   └── notifications/    #   푸시 토큰, 발송 잡
 │   └── seeds/                # 🌱 초기 데이터 (양념, 프리셋, 레시피, 뱃지)
+├── migrations/versions/      # 🗂 DB 마이그레이션 파일 (0001, 0002, ...)
 └── tests/                    # 기능별 테스트
 ```
 
@@ -183,7 +186,7 @@ backend/
 | | GET | `/gamification/badges` | 뱃지 목록 + 진행도 | ✅ |
 | | GET | `/gamification/xp-logs` | 최근 XP 로그 | ✅ |
 | notifications | POST | `/notifications/devices` | Expo 푸시 토큰 등록 | ✅ |
-| | DELETE | `/notifications/devices/{token}` | 푸시 토큰 해제 | ✅ |
+| | POST | `/notifications/devices/unregister` | 푸시 토큰 해제 (본문 `{"token"}`) | ✅ |
 | | GET | `/notifications` | 받은 알림 이력 | ✅ |
 
 ### 공통 응답 규칙
@@ -195,10 +198,10 @@ backend/
 | --- | --- | --- |
 | 401 | `UNAUTHORIZED` | `X-Device-Id` 헤더 없음 |
 | 404 | `NOT_FOUND` | 없는 리소스, 남의 리소스 |
-| 422 | `VALIDATION_ERROR` | 비즈니스 검증 실패 (지난 유통기한 등) |
-| 422 | (FastAPI 기본) | 요청 형식 오류 → `detail` 배열 |
+| 422 | `VALIDATION_ERROR` | 검증 실패 (지난 유통기한, 요청 형식 오류 등). 형식 오류면 `errors: [{"field", "message"}]` 도 옴 |
 | 501 | `NOT_IMPLEMENTED` | 아직 TODO인 기능 |
 | 502 | `LLM_ERROR` | Gemini 호출 실패 (무료 등급 한도 초과 포함) |
+| 500 | `INTERNAL_ERROR` | 예상 못 한 서버 오류 (`DEBUG=false` 일 때. `true` 면 에러 내용이 그대로 나감) |
 
 ### 주요 값(enum)
 
@@ -262,9 +265,19 @@ backend/
 
 ### 6. DB 스키마 변경
 
-지금은 서버 시작 때 `create_all`로 테이블을 만듭니다. **이미 있는 테이블에 컬럼을 추가/변경하면 반영되지 않아요.**
-→ 모델을 바꿨다면 로컬에서 `rm bangguseok.db` 후 서버를 재시작하고, PR 설명에 "DB 삭제 필요"라고 적어주세요.
-(PostgreSQL로 전환할 때 Alembic 마이그레이션을 도입합니다.)
+**Alembic 마이그레이션**을 씁니다. 서버를 켜면 `app/migrate.py`가 DB를 자동으로 최신 버전까지 올려요. **DB를 지울 필요 없어요.**
+
+모델(`models.py`)에 칸이나 테이블을 추가·변경했다면 마이그레이션 파일을 만들어 같이 커밋하세요.
+```bash
+cd backend
+alembic revision --autogenerate --rev-id 0003 -m "reminders 에 memo 추가"   # 번호는 이어서
+# → migrations/versions/0003_....py 가 생김. 열어서 내용이 맞는지 확인 (특히 이름 변경은 '삭제+추가'로 잡히니 직접 고치기)
+alembic upgrade head      # 내 로컬 DB에 적용 (서버 재시작해도 적용됨)
+pytest                    # test_migrations 가 모델과 마이그레이션이 맞는지 검사
+```
+- 마이그레이션 파일을 안 만들면 `tests/test_migrations.py`가 실패해서 알려줘요.
+- 둘이 동시에 같은 번호를 만들면 `alembic heads`가 2개로 나와요 → 나중 사람이 번호와 `down_revision`을 고쳐 주세요.
+- Alembic 도입 전에 만든 로컬 DB는 처음 켤 때 자동으로 `0001`로 표시되고 이어서 올라가요.
 
 ---
 
@@ -301,10 +314,10 @@ git push origin backend                         # 3. push → GitHub에서 main�
 ## ❓ 자주 묻는 것
 
 **Q. 서버는 켜지는데 테이블 구조가 이상해요 / 컬럼이 없대요.**
-→ `rm bangguseok.db` 후 재시작. (모델 변경이 기존 DB에 반영되지 않아서예요.)
+→ 모델을 바꾸고 마이그레이션 파일을 안 만들었을 가능성이 커요 (위 '6. DB 스키마 변경'). 개발용 DB라 데이터가 필요 없으면 `rm bangguseok.db` 후 재시작해도 돼요.
 
 **Q. 레시피 · 프리셋 데이터를 바꾸고 싶어요.**
-→ `app/seeds/data.py` 수정 → `rm bangguseok.db` → 재시작.
+→ `app/seeds/data.py` 수정 → 재시작. 양념 · 레시피 · 뱃지는 **새로 추가한 것**이 자동으로 들어가요 (이미 있는 레시피의 내용 수정은 반영 안 됨 → 그땐 `rm bangguseok.db`). 프리셋은 테이블이 비어 있을 때만 채워요.
 
 **Q. 레시피 추천은 어떻게 동작해요?**
 → `app/features/recipes/service.py`의 `recommend()`

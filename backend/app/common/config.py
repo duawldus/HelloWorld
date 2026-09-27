@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # LLM (Gemini API) — app/common/llm 에서만 사용
     GEMINI_API_KEY: str = ""
     LLM_MODEL: str = "gemini-3.8-flash"  # 무료 등급 사용 가능
+    # AI가 답하기 전에 '생각하는' 양: minimal < low < medium < high. 낮을수록 빠르다 (레시피·재료 인식은 low 로 충분)
+    LLM_THINKING_LEVEL: str = "low"
+    LLM_TIMEOUT_SECONDS: int = 30  # 이 시간 안에 답이 없으면 실패 처리 (레시피 추천은 AI 없이 기존 레시피로 응답)
 
     # AI 사진 인식
     AI_MOCK: bool = True  # True면 Gemini 호출 없이 고정된 가짜 결과를 돌려준다 (프론트 개발용, 비용 0)

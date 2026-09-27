@@ -45,6 +45,8 @@ def test_builds_request_and_parses(fake):
     assert kw["input"][1] == {"type": "image", "data": "aW1n", "mime_type": "image/png"}
     assert kw["response_format"]["mime_type"] == "application/json"
     assert "default" not in json.dumps(kw["response_format"]["schema"])
+    assert kw["generation_config"] == {"thinking_level": "low"}  # 빠른 응답
+    assert kw["timeout"] == 30
 
 
 def test_rate_limit_maps_to_llm_error(fake):

@@ -46,6 +46,7 @@ def get_home(db: Session, user: User) -> HomeResponse:
                     title=r.title,
                     due_at=due,
                     d_day=d_day(due.date(), current.date()),
+                    done_this_cycle=reminders.is_cycle_done(r, due.date()),
                 )
             )
 

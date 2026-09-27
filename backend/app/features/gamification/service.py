@@ -4,7 +4,7 @@
    (recipes: 요리 완료, ingredients: 사진 등록, reminders: 집안일 완료)
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from app.common.config import settings
 from app.common.time import today
 from app.features.gamification.models import Badge, UserBadge, XpLog
 from app.features.gamification.rules import (
+    DAILY_LIMITS,
     XP_TABLE,
     BadgeCondition,
     XpAction,
@@ -45,6 +46,25 @@ def award_xp(
     if amount > 0:
         touch_streak(user)
     return log, user.level > before
+
+
+def within_daily_limit(db: Session, user: User, action: XpAction, on: date | None = None) -> bool:
+    """오늘 이 행동으로 XP를 더 받을 수 있는지 (rules.DAILY_LIMITS). 실행 취소한 건 로그가 지워져 횟수에서 빠진다."""
+    limit = DAILY_LIMITS.get(action)
+    if limit is None:
+        return True
+    start = datetime.combine(on or today(), time.min)
+    stmt = (
+        select(func.count())
+        .select_from(XpLog)
+        .where(
+            XpLog.user_id == user.id,
+            XpLog.action == action,
+            XpLog.created_at >= start,
+            XpLog.created_at < start + timedelta(days=1),
+        )
+    )
+    return (db.scalar(stmt) or 0) < limit
 
 
 def revoke_xp(db: Session, user: User, actions: list[XpAction], ref_id: int) -> int:

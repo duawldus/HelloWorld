@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.common.config import settings
-from app.common.db import SessionLocal, create_all_tables
+from app.common.db import SessionLocal
 from app.common.exceptions import register_exception_handlers
 from app.features.gamification.router import router as gamification_router
 from app.features.home.router import router as home_router
@@ -15,6 +15,7 @@ from app.features.recipes.router import router as recipes_router
 from app.features.reminders.router import router as reminders_router
 from app.features.users.router import router as users_router
 from app.features.vision.router import router as vision_router
+from app.migrate import run_migrations
 from app.seeds import seed_all
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    create_all_tables()
+    run_migrations()
     if settings.SEED_ON_STARTUP:
         with SessionLocal() as db:
             seed_all(db)

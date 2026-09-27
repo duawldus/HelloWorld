@@ -24,7 +24,8 @@ def get_or_create_by_device(db: Session, device_id: str) -> User:
 
 
 def update_me(db: Session, user: User, data: UserUpdate) -> User:
-    for key, value in data.model_dump(exclude_unset=True).items():
+    # null 로 온 값은 '바꾸지 않음'으로 본다 (필수 칸을 비우면 DB 저장 때 500이 나므로)
+    for key, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(user, key, value)
     db.commit()
     return user

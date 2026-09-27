@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -164,6 +164,9 @@ def get_generator() -> RecipeGenerator:
     return MockRecipeGenerator() if settings.AI_MOCK else LLMRecipeGenerator()
 
 
+ALWAYS_AVAILABLE = {"물"}  # AI 가 재료로 넣어도 '부족 재료'로 잡히지 않게 저장할 때 뺀다
+
+
 def _save_generated(db: Session, user: User, generated: list[GeneratedRecipe]) -> list[Recipe]:
     existing = set(db.scalars(select(Recipe.title)))
     saved = []
@@ -190,6 +193,7 @@ def _save_generated(db: Session, user: User, generated: list[GeneratedRecipe]) -
                     substitutes=i.substitutes,
                 )
                 for i in g.ingredients
+                if i.name.strip() not in ALWAYS_AVAILABLE
             ],
             steps=[RecipeStep(step_no=n, description=text) for n, text in enumerate(g.steps, start=1)],
         )
@@ -327,6 +331,8 @@ def get_detail(db: Session, user: User, recipe_id: int, servings: int = 1) -> Re
 # ---------- 요리 완료 · 실행 취소 ----------
 
 COOK_XP_ACTIONS = [XpAction.COOK_COMPLETE, XpAction.EXPIRY_SAVE_BONUS]
+# 실행 취소 가능 시간. 오래된 요리를 취소하면 이미 상한 재료가 냉장고로 돌아오고 레벨이 내려간다
+UNDO_WINDOW = timedelta(hours=24)
 
 
 def _consume(db: Session, user: User, ingredient_ids: list[int]) -> list[dict]:
@@ -365,6 +371,7 @@ def complete_cooking(db: Session, user: User, recipe_id: int, data: CookComplete
     1. 소진할 재료: 요청의 ingredient_ids, 없으면 레시피 재료마다 가장 급한 내 재료를 자동 선택
     2. 재료를 통째로 소진 (ingredients.consume_ingredients) — 스냅샷은 실행 취소용으로 CookLog 에 저장
     3. XP: 요리 완료 + 임박 재료(D-0 ~ D-3)를 유통기한 안에 쓰면 '유통기한 내 소진 보너스'
+       (보너스는 하루 rules.DAILY_LIMITS 번까지. 넘으면 bonus_capped=True)
     """
     recipe = get_recipe(db, recipe_id)
     target_ids = data.ingredient_ids or _auto_targets(db, user, recipe)
@@ -392,7 +399,9 @@ def complete_cooking(db: Session, user: User, recipe_id: int, data: CookComplete
         db, user, XpAction.COOK_COMPLETE, f"{recipe.title} 요리 완료", ref_id=cook_log.id
     )
     reasons, total = [log.description], log.amount
-    if any(c.imminent for c in consumed):
+    saved = any(c.imminent for c in consumed)
+    bonus_capped = saved and not gamification.within_daily_limit(db, user, XpAction.EXPIRY_SAVE_BONUS)
+    if saved and not bonus_capped:
         bonus, bonus_level_up = gamification.award_xp(
             db, user, XpAction.EXPIRY_SAVE_BONUS, "유통기한 내 소진 보너스", ref_id=cook_log.id
         )
@@ -407,16 +416,19 @@ def complete_cooking(db: Session, user: User, recipe_id: int, data: CookComplete
         cook_log_id=cook_log.id,
         consumed=consumed,
         xp=XpGain(amount=total, reasons=reasons, level_up=level_up, new_badges=[b.name for b in new_badges]),
+        bonus_capped=bonus_capped,
     )
 
 
 def undo_cooking(db: Session, user: User, cook_log_id: int) -> CookUndoResponse:
-    """요리 완료 실행 취소 — 재료 복구 + 지급했던 XP 로그 삭제·회수."""
+    """요리 완료 실행 취소 — 재료 복구 + 지급했던 XP 로그 삭제·회수. 요리 완료 후 UNDO_WINDOW 안에만 가능."""
     cook_log = db.get(CookLog, cook_log_id)
     if cook_log is None or cook_log.user_id != user.id:
         raise NotFoundError("요리 기록을 찾을 수 없습니다.")
     if cook_log.undone_at is not None:
         raise ConflictError("이미 취소된 요리예요.", code="ALREADY_UNDONE")
+    if now() - cook_log.created_at > UNDO_WINDOW:
+        raise ConflictError("요리 완료 후 24시간이 지나 취소할 수 없어요.", code="UNDO_EXPIRED")
 
     restored = ingredients.restore_ingredients(db, user, cook_log.consumed_snapshot)
     revoked = gamification.revoke_xp(db, user, COOK_XP_ACTIONS, ref_id=cook_log.id)

@@ -22,6 +22,7 @@ class TodayChore(BaseModel):
     title: str
     due_at: datetime
     d_day: int
+    done_this_cycle: bool  # 이번 회차를 이미 완료했는지 (생활 알림 화면의 done_this_cycle 과 같은 기준)
 
 
 class FridgeSummary(BaseModel):

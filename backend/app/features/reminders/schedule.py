@@ -67,12 +67,38 @@ def next_notify_at(r: Reminder, after: datetime) -> tuple[datetime, datetime] | 
     return None
 
 
-def cycle_due_date(r: Reminder, at: datetime) -> date:
-    """at 이 속한 회차의 '해야 하는 날'. 해야 하는 날 당일(시각 무관)까지는 그 회차, 다음 날부터는 다음 회차.
+def next_due_date(r: Reminder, on: date) -> date | None:
+    """on 다음 날부터 가장 가까운 '해야 하는 날'."""
+    due = next_occurrence(r, datetime.combine(on, time.max))
+    return due.date() if due else None
 
-    예) 매주 화·금: 화요일 완료 → 화요일 회차 / 수·목·금 완료 → 금요일 회차.
-    규칙이 잘못돼 다음 날짜를 못 구하면 at 의 날짜(= 하루 1번)로 본다.
+
+def prev_due_date(r: Reminder, on: date) -> date | None:
+    """on 당일을 포함해 가장 최근의 '해야 하는 날'. 알림을 만들기 전(anchor_date 이전) 날짜는 없는 것으로 본다."""
+    interval = max(r.interval, 1)
+    span = {RepeatType.DAILY: interval, RepeatType.WEEKLY: 7 * interval}.get(r.repeat_type, 31 * interval + 1)
+    probe = datetime.combine(on - timedelta(days=span), time.min) - timedelta(microseconds=1)
+    last = None
+    while (due := next_occurrence(r, probe)) and due.date() <= on:
+        last, probe = due.date(), due
+    return last if last and last >= r.anchor_date else None
+
+
+def cycle_due_date(r: Reminder, at: datetime, last_done_due: date | None) -> date:
+    """at 에 완료하면 어느 회차(해야 하는 날)로 칠지. last_done_due = 마지막으로 완료한 회차.
+
+    1. 오늘이 해야 하는 날이면 → 오늘 회차
+    2. 다음 회차의 'N일 전 알림' 기간에 들어왔으면 → 다음 회차 (예: 25일 납부, 3일 전 알림 → 22일부터는 이번 달 회차)
+    3. 지난 회차를 아직 안 했으면 → 지난 회차 (늦게 한 것. 예: 화요일 빨래를 수요일에 → 화요일 회차)
+    4. 그 외 → 다음 회차 (미리 한 것)
+    규칙이 잘못돼 날짜를 못 구하면 at 의 날짜(= 하루 1번)로 본다.
     """
-    day_start = datetime.combine(at.date(), time.min)
-    due = next_occurrence(r, day_start - timedelta(microseconds=1))
-    return due.date() if due else at.date()
+    on = at.date()
+    prev, nxt = prev_due_date(r, on), next_due_date(r, on)
+    if prev == on:
+        return on
+    if nxt and on >= nxt - timedelta(days=r.notify_before_days):
+        return nxt
+    if prev and prev != last_done_due:
+        return prev
+    return nxt or on

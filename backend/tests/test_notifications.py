@@ -180,6 +180,29 @@ def test_reminder_alert_days_before(db, user):
     assert sender.sent[0][1].body == "전기요금 납부까지 3일 남았어요 (9월 28일)"
 
 
+def test_reminder_alert_skipped_when_cycle_already_done(db, user):
+    r = _reminder(
+        db,
+        user,
+        category=ReminderCategory.BILL,
+        title="전기요금 납부",
+        repeat_type=RepeatType.MONTHLY,
+        weekdays=[],
+        day_of_month=28,
+        remind_time=time(10, 0),
+        notify_before_days=3,
+        anchor_date=date(2026, 8, 1),
+        last_done_due=date(2026, 8, 28),  # 지난달 회차 완료 → 이번 회차 알림은 보낸다
+    )
+    at = datetime(2026, 9, 25, 10, 0)
+    assert jobs.run_reminder_alerts(db, FakeSender(), at) == 1
+
+    db.query(NotificationLog).delete()
+    r.last_done_due = date(2026, 9, 28)  # 이번 회차를 미리 완료 → 보내지 않는다
+    db.commit()
+    assert jobs.run_reminder_alerts(db, FakeSender(), at) == 0
+
+
 def test_disabled_reminder_is_skipped(db, user):
     _reminder(db, user, enabled=False)
     assert jobs.run_reminder_alerts(db, FakeSender(), datetime(2026, 9, 25, 20, 0)) == 0
@@ -226,3 +249,15 @@ def test_expo_sender_payload_and_dead_tokens():
 def test_expo_sender_survives_http_error():
     sender = ExpoPushSender(client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(500))))
     assert sender.send(["ExponentPushToken[x]"], PushMessage(title="t", body="b", deeplink="d", channel="expiry")) == []
+
+
+def test_register_and_unregister_device(client, db, device_headers):
+    token = "ExponentPushToken[abc-123]"
+    api = "/api/v1/notifications/devices"
+    assert client.post(api, json={"token": token, "platform": "ANDROID"}, headers=device_headers).status_code == 201
+
+    res = client.post(f"{api}/unregister", json={"token": token}, headers=device_headers)
+    assert res.status_code == 204
+    assert db.scalar(select(PushDevice).where(PushDevice.token == token)) is None
+    again = client.post(f"{api}/unregister", json={"token": token}, headers=device_headers)
+    assert again.status_code == 404 and again.json()["code"] == "NOT_FOUND"

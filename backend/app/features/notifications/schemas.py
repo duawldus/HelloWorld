@@ -11,6 +11,10 @@ class DeviceRegister(BaseModel):
     platform: Platform
 
 
+class DeviceUnregister(BaseModel):
+    token: str = Field(min_length=10, max_length=300)
+
+
 class DeviceRead(ORMModel):
     id: int
     platform: Platform

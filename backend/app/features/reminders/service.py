@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,8 +40,18 @@ def summarize(r: Reminder) -> str:
     return f"{rule} · {t}{before}"
 
 
+def is_cycle_done(r: Reminder, due: date) -> bool:
+    """'해야 하는 날'이 due 인 회차를 이미 완료했는지. home / notifications 도메인도 사용하는 공개 함수."""
+    return r.last_done_due == due
+
+
+def current_cycle(r: Reminder, at: datetime) -> date:
+    """지금 완료 버튼을 누르면 완료되는 회차."""
+    return cycle_due_date(r, at, r.last_done_due)
+
+
 def is_done_this_cycle(r: Reminder, at: datetime) -> bool:
-    return r.last_done_at is not None and cycle_due_date(r, r.last_done_at) == cycle_due_date(r, at)
+    return is_cycle_done(r, current_cycle(r, at))
 
 
 def to_read(r: Reminder) -> ReminderRead:
@@ -90,7 +100,8 @@ def create_reminder(db: Session, user: User, data: ReminderCreate) -> ReminderRe
 
 def update_reminder(db: Session, user: User, reminder_id: int, data: ReminderUpdate) -> ReminderRead:
     reminder = get_owned(db, user, reminder_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    # null 로 온 값은 '바꾸지 않음'으로 본다 (필수 칸을 비우면 DB 저장 때 500이 나므로)
+    for key, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(reminder, key, value)
     try:
         validate_rule(reminder.repeat_type, reminder.weekdays, reminder.day_of_month)
@@ -113,11 +124,12 @@ def complete_reminder(db: Session, user: User, reminder_id: int) -> ReminderComp
     """
     reminder = get_owned(db, user, reminder_id)
     at = now()
-    if is_done_this_cycle(reminder, at):
+    cycle = current_cycle(reminder, at)
+    if is_cycle_done(reminder, cycle):
         return ReminderCompleteResponse(
             reminder=to_read(reminder), xp=XpGain(amount=0, reasons=["이미 완료한 집안일이에요"])
         )
-    reminder.last_done_at = at
+    reminder.last_done_at, reminder.last_done_due = at, cycle
     log, level_up = gamification.award_xp(
         db, user, XpAction.CHORE_COMPLETE, f"{reminder.title} 완료", ref_id=reminder.id
     )

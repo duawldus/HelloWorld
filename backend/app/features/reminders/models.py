@@ -40,3 +40,4 @@ class Reminder(TimestampMixin, Base):
     anchor_date: Mapped[date] = mapped_column(Date, default=today)  # interval 계산 기준일
     enabled: Mapped[bool] = mapped_column(default=True)
     last_done_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    last_done_due: Mapped[date | None] = mapped_column(Date, default=None)  # 마지막으로 완료한 회차의 '해야 하는 날'

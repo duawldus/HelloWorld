@@ -20,6 +20,12 @@ XP_TABLE: dict[XpAction, int] = {
     XpAction.CHORE_COMPLETE: 5,
 }
 
+# 하루에 받을 수 있는 최대 횟수. 없는 행동은 무제한.
+# 유통기한 보너스: 오늘 만료로 재료를 등록해 바로 요리하는 식의 XP 반복 획득을 막는다.
+DAILY_LIMITS: dict[XpAction, int] = {
+    XpAction.EXPIRY_SAVE_BONUS: 3,
+}
+
 # (레벨, 필요 누적 XP, 칭호) — 확정(2026-09-27). 와이어프레임: Lv.3 240XP, 다음 레벨까지 150 → Lv.4 = 390
 LEVELS: list[tuple[int, int, str]] = [
     (1, 0, "자취 새내기"),

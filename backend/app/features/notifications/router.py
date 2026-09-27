@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query, status
 
 from app.common.deps import CurrentUser, DbSession
 from app.features.notifications import service
-from app.features.notifications.schemas import DeviceRead, DeviceRegister, NotificationRead
+from app.features.notifications.schemas import DeviceRead, DeviceRegister, DeviceUnregister, NotificationRead
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -15,9 +15,10 @@ def register_device(data: DeviceRegister, db: DbSession, user: CurrentUser):
     return service.register_device(db, user, data)
 
 
-@router.delete("/devices/{token}", status_code=status.HTTP_204_NO_CONTENT)
-def unregister_device(token: str, db: DbSession, user: CurrentUser):
-    service.unregister_device(db, user, token)
+@router.post("/devices/unregister", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_device(data: DeviceUnregister, db: DbSession, user: CurrentUser):
+    """로그아웃·알림 끄기 시 푸시 토큰 해제. 토큰에 [ ] 가 있어 주소 대신 본문으로 받는다."""
+    service.unregister_device(db, user, data.token)
 
 
 @router.get("", response_model=list[NotificationRead])

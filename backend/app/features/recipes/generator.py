@@ -10,7 +10,9 @@ from app.features.recipes.models import Cookware, Difficulty
 
 class GeneratedIngredient(BaseModel):
     name: str = Field(description="재료 이름. 사용자가 가진 재료/양념 이름과 글자 그대로 똑같이")
-    quantity: float | None = Field(description="1인분 기준 수량. '약간'처럼 수량이 없으면 null")
+    quantity: float | None = Field(
+        description="1인분 기준 수량. 정수 또는 1/4·1/3·1/2 단위(0.25, 0.33, 0.5). '약간'처럼 수량이 없으면 null"
+    )
     unit: str | None = Field(description="단위 (개, 모, 큰술, 작은술, g, 컵, 약간 등)")
     is_seasoning: bool = Field(description="양념이면 true")
     is_optional: bool = Field(description="없어도 되는 재료면 true")
@@ -24,7 +26,7 @@ class GeneratedRecipe(BaseModel):
     difficulty: Difficulty
     cookware: Cookware = Field(description="주 조리도구. ONE_PAN=프라이팬 하나, MICROWAVE=전자레인지, POT=냄비")
     ingredients: list[GeneratedIngredient]
-    steps: list[str] = Field(description="조리 순서. 3~6단계, 각 단계는 한 문장")
+    steps: list[str] = Field(description="조리 순서. 3~6단계, 각 단계는 50자 안팎의 한 문장")
 
 
 class GeneratedRecipes(BaseModel):
@@ -96,8 +98,11 @@ SYSTEM_PROMPT = (
 )
 
 
+COOKWARE_KO = {Cookware.ONE_PAN: "프라이팬 하나", Cookware.MICROWAVE: "전자레인지만", Cookware.POT: "냄비 하나"}
+
+
 class LLMRecipeGenerator:
-    """TODO(recipes): 실제 결과를 보며 프롬프트 튜닝 (재료 수량 현실성, 조리 순서 길이 등)"""
+    """프롬프트는 scripts/eval_recipe_prompt.py 로 실제 결과를 보며 조정한다."""
 
     def generate(self, req: GenerationRequest) -> list[GeneratedRecipe]:
         ingredient_lines = "\n".join(
@@ -107,7 +112,7 @@ class LLMRecipeGenerator:
         if req.max_minutes:
             conditions.append(f"- 조리 시간 {req.max_minutes}분 이내")
         if req.cookware:
-            conditions.append(f"- 조리도구: {req.cookware.value}")
+            conditions.append(f"- 조리도구: {COOKWARE_KO[req.cookware]} (cookware={req.cookware.value})")
         if req.avoid_titles:
             conditions.append(f"- 다음 요리와 겹치지 않게: {', '.join(req.avoid_titles[:50])}")
 
@@ -124,7 +129,9 @@ class LLMRecipeGenerator:
 - 주재료는 위 냉장고 재료에서만 고를 것. 없는 재료가 꼭 필요하면 1개까지만 허용
 - 양념은 가지고 있는 양념 위주로. 없는 양념은 is_optional=true
 - 재료 이름은 위 목록의 이름을 글자 그대로 쓸 것
-- 수량은 1인분 기준
+- 수량은 1인분 기준. 정수나 1/4·1/3·1/2 단위로만 쓰고, 그보다 적은 양념은 '약간'(quantity=null)
+- 물은 재료 목록에 넣지 말고 조리 순서에만 쓸 것 (예: "물 1컵을 붓고")
+- 조리 순서의 각 단계는 50자 안팎의 한 문장. 동작은 한 단계에 1~2개만
 {chr(10).join(conditions)}"""
 
         result = generate_structured(GeneratedRecipes, prompt, system=SYSTEM_PROMPT)

@@ -1,4 +1,8 @@
-"""마스터 데이터 시딩. 테이블이 비어 있을 때만 채운다 (재시작해도 중복 삽입 없음)."""
+"""마스터 데이터 시딩. 재시작해도 중복 삽입 없음.
+
+- 양념 · 레시피 · 뱃지: 이름(뱃지는 code)으로 비교해 DB에 없는 것만 넣는다 → data.py 에 추가하면 다음 실행 때 반영
+- 재료 프리셋: 테이블이 비어 있을 때만 채운다
+"""
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,8 +19,10 @@ def _is_empty(db: Session, model) -> bool:
 
 
 def seed_all(db: Session) -> None:
-    if _is_empty(db, Seasoning):
-        db.add_all(Seasoning(name=n, icon=i, sort_order=idx) for idx, (n, i) in enumerate(SEASONINGS))
+    seasonings = set(db.scalars(select(Seasoning.name)))
+    db.add_all(
+        Seasoning(name=n, icon=i, sort_order=idx) for idx, (n, i) in enumerate(SEASONINGS) if n not in seasonings
+    )
 
     if _is_empty(db, IngredientPreset):
         db.add_all(
@@ -33,8 +39,10 @@ def seed_all(db: Session) -> None:
             for idx, (name, icon, storage, days, qty, unit, frequent) in enumerate(PRESETS)
         )
 
-    if _is_empty(db, Recipe):
-        for r in RECIPES:
+    # AI 가 같은 이름으로 만든 레시피가 있어도 건너뛴다 (제목 중복 방지)
+    titles = set(db.scalars(select(Recipe.title)))
+    for r in RECIPES:
+        if r["title"] not in titles:
             db.add(
                 Recipe(
                     title=r["title"],

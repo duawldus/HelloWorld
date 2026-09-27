@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.common.llm import LLMError
 from app.common.time import today
 from app.features.recipes import service
+from app.features.recipes.generator import GeneratedIngredient, MockRecipeGenerator
 from app.features.recipes.models import Recipe, RecipeSource
 from app.main import app
 
@@ -129,6 +130,24 @@ def test_ai_generates_when_not_enough(client, db, device_headers):
     again = client.get(f"{API}/recommendations", headers=device_headers).json()
     assert again["ai_generated"] is False
     assert again["ready"][0]["id"] == card["id"]
+
+
+def test_ai_recipe_drops_water_ingredient(client, db, device_headers):
+    class WithWater(MockRecipeGenerator):
+        def generate(self, req):
+            recipes = super().generate(req)
+            recipes[0].ingredients.append(
+                GeneratedIngredient(
+                    name="물", quantity=100, unit="ml", is_seasoning=False, is_optional=False, substitutes=[]
+                )
+            )
+            return recipes
+
+    app.dependency_overrides[service.get_generator] = lambda: WithWater()
+    _set_seasonings(client, device_headers, {"식용유"})
+    _add(client, device_headers, "고추")
+    card = client.get(f"{API}/recommendations", headers=device_headers).json()["ready"][0]
+    assert "물" not in [i.name for i in db.get(Recipe, card["id"]).ingredients]
 
 
 def test_ai_disabled_by_param(client, device_headers):

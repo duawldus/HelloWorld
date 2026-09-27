@@ -93,6 +93,7 @@ class CookCompleteResponse(BaseModel):
     cook_log_id: int
     consumed: list[ConsumedIngredient]
     xp: XpGain
+    bonus_capped: bool = False  # 임박 재료를 썼지만 오늘 보너스 횟수를 다 써서 보너스를 못 받음
 
 
 class CookUndoResponse(BaseModel):

@@ -28,6 +28,7 @@ from app.features.notifications.schemas import PushMessage
 from app.features.notifications.sender import PushSender, get_sender
 from app.features.recipes import service as recipes
 from app.features.recipes.schemas import RecommendQuery
+from app.features.reminders import service as reminders
 from app.features.reminders.models import Reminder
 from app.features.reminders.schedule import next_notify_at
 from app.features.users.models import User
@@ -136,6 +137,8 @@ def run_reminder_alerts(db: Session, sender: PushSender, at: datetime) -> int:
         if nxt is None or nxt[0] > at:
             continue
         notify_at, due = nxt
+        if reminders.is_cycle_done(r, due.date()):
+            continue  # '3일 전 알림'을 받고 미리 끝낸 회차면 남은 알림은 보내지 않는다
         on = notify_at.date()
         if service.already_sent(db, r.user_id, NotificationType.REMINDER, on, ref_id=r.id):
             continue

@@ -78,7 +78,8 @@ def generate_structured(
                 "mime_type": "application/json",
                 "schema": _schema(output_type),
             },
-            timeout=120,
+            generation_config={"thinking_level": settings.LLM_THINKING_LEVEL},
+            timeout=settings.LLM_TIMEOUT_SECONDS,
             **kwargs,
         )
     except Exception as e:  # SDK 예외 클래스가 공개 경로로 제공되지 않아 상태 코드로 구분

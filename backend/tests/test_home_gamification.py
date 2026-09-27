@@ -23,6 +23,17 @@ def test_home(client, device_headers):
     assert body["today_recipe"] is not None
 
 
+def test_home_chore_done_this_cycle(client, device_headers):
+    payload = {"category": "CLEANING", "title": "설거지", "repeat_type": "DAILY", "remind_time": "23:59"}
+    rid = client.post(f"{API}/reminders", json=payload, headers=device_headers).json()["id"]
+    [chore] = client.get(f"{API}/home", headers=device_headers).json()["today_chores"]
+    assert (chore["reminder_id"], chore["done_this_cycle"]) == (rid, False)
+
+    client.post(f"{API}/reminders/{rid}/complete", headers=device_headers)
+    [chore] = client.get(f"{API}/home", headers=device_headers).json()["today_chores"]
+    assert chore["done_this_cycle"] is True
+
+
 def test_stats_and_badges(client, device_headers):
     stats = client.get(f"{API}/gamification/stats", headers=device_headers).json()
     assert stats["level"] == 1 and stats["next_level_xp"] == 100

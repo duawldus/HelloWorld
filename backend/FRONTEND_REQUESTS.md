@@ -269,10 +269,15 @@ export const PUSH_SOURCE = 'server' // 앱 예약 알림은 지우고 서버 푸
 | `last_done_at` | 마지막 완료 시각 (`"2026-09-23T10:00:00"`, 한국 시간), 없으면 `null` |
 | `done_this_cycle` | **이번 회차를 이미 완료했는지.** `true`면 완료 버튼 비활성화 |
 
-**회차 기준** — '해야 하는 날' 당일(시각 무관)까지가 그 회차이고, 다음 날부터는 다음 회차입니다.
+**회차 기준** (2026-09-28 변경: 늦게 한 건 지난 회차로 칩니다)
+1. 오늘이 '해야 하는 날'이면 → 오늘 회차
+2. 다음 회차의 'N일 전 알림' 기간이면 → 다음 회차
+3. 지난 회차를 아직 안 했으면 → **지난 회차** (늦게 한 것)
+4. 그 외 → 다음 회차 (미리 한 것)
+
 - 매일: 하루에 한 번
-- 매주 화·금: 화요일에 완료 → 화요일 회차 / **수·목·금에 완료 → 금요일 회차** (수요일에 미리 했으면 금요일엔 이미 완료)
-- 매달 25일, 3일 전 알림: 22일에 미리 납부해도 25일 회차 → 26일부터 다음 달 회차
+- 매주 화·금: 화요일에 완료 → 화요일 회차 / 화요일 걸 안 하고 **수·목에 완료 → 화요일 회차**(늦게 함) → 그 뒤엔 금요일 회차를 미리 할 수 있어요 (`done_this_cycle`이 다시 `false`)
+- 매달 25일, 3일 전 알림: 22일에 미리 납부해도 25일 회차 / 25일 걸 안 내고 27일에 내면 25일 회차(늦게 냄)
 
 **`POST /reminders/{id}/complete`를 같은 회차에 다시 보내면** 에러가 아니라 `200`으로, 아무것도 바꾸지 않고 XP 0을 돌려줍니다.
 ```json
@@ -293,13 +298,45 @@ function isDoneToday(item) {
 
 ---
 
+## 4-4. 에러 응답 형식 통일 · 요리 보너스 상한 · 홈 집안일 완료 여부 ✅ (우시연)
+
+**에러는 이제 전부 `{"code", "message"}` 모양입니다.**
+- 요청 값이 잘못됐을 때(422)도 FastAPI 기본 형식 `{"detail": [...]}` 대신 아래처럼 옵니다.
+  ```json
+  {"code": "VALIDATION_ERROR", "message": "nickname: String should have at least 1 character",
+   "errors": [{"field": "nickname", "message": "String should have at least 1 character"}]}
+  ```
+- 없는 주소는 `404` `NOT_FOUND`, 서버 오류는 `500` `INTERNAL_ERROR` (메시지는 "서버에 문제가 생겼어요...").
+- `detail`을 읽는 코드가 있다면 `message`로 바꿔 주세요.
+
+**요리 완료 — 유통기한 내 소진 보너스는 하루 3번까지**
+- 4번째부터는 요리 완료 +10만 받고, 응답에 `"bonus_capped": true`가 옵니다. (토스트에 "오늘 보너스는 다 받았어요" 등으로 쓰시면 됩니다)
+
+**요리 완료 실행 취소는 24시간 안에만**
+- 지나면 `409`, `code: "UNDO_EXPIRED"`. 취소 버튼은 요리 직후 토스트에서만 보여 주시는 걸 권합니다.
+
+**홈 `today_chores[]`에 `done_this_cycle` 추가**
+- 생활 알림 화면의 `done_this_cycle`과 같은 기준입니다. `true`면 완료 표시(체크/흐리게) 해 주세요.
+
+**생활 알림 푸시** — 이번 회차를 이미 완료했으면(예: '3일 전 알림' 받고 미리 납부) 남은 알림은 보내지 않습니다. 프론트 작업 없음.
+
+**PATCH 에서 `null` = 바꾸지 않음** — `PATCH /users/me`, `PATCH /reminders/{id}`에 `{"remind_time": null}`처럼 보내면 전에는 500이었는데, 이제 그 칸은 그대로 둡니다.
+
+**⚠️ 푸시 토큰 해제 API 주소가 바뀌었습니다** (`frontend/src/data/server/index.js`의 `unregisterPushToken`)
+```js
+// 전: DELETE /notifications/devices/{token}
+return request('/notifications/devices/unregister', { method: 'POST', body: { token } })
+```
+- 성공 `204`, 등록 안 된 토큰이면 `404`. 토큰을 주소에 넣지 않아서 `encodeURIComponent`가 필요 없어요.
+
+---
+
 ## 5. 백엔드를 새로 받으신 뒤 해 주실 것
 
-테이블 구조가 바뀌어서 **로컬 DB를 한 번 지우고** 서버를 다시 켜 주세요.
+이제 **DB를 지울 필요가 없습니다.** 서버를 켜면 DB 구조가 자동으로 최신으로 바뀌어요 (마이그레이션). 패키지만 다시 설치해 주세요.
 ```bash
 cd backend
-rm -f bangguseok.db
-pip install -r requirements-dev.txt   # LLM이 Claude → Gemini로 바뀌어 패키지가 달라졌습니다
+pip install -r requirements-dev.txt   # 버전 고정 + alembic 추가
 uvicorn app.main:app --reload
 ```
 - 레시피가 7개 → **28개**로 늘었습니다.
