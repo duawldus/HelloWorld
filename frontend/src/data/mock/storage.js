@@ -6,7 +6,7 @@ import { addDays, daysBetween, todayString } from '../utils.js'
 
 // 더미 데이터(dummyData.js)나 저장 모양을 바꾸면 이 숫자를 1 올리세요.
 // 예전 버전이 저장된 기기는 앱을 켤 때 새 더미 데이터로 초기화됩니다.
-const DATA_VERSION = 5
+const DATA_VERSION = 6
 
 // true 면 날짜를 '오늘' 기준으로 유지합니다. (발표·테스트용)
 // 저장된 유통기한·연속 기록·XP 기록 날짜를 지난 날짜만큼 뒤로 옮겨서,
