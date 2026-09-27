@@ -44,5 +44,49 @@ export const BADGES = [
   { id: 6, code: 'PHOTO_10', name: '사진 등록 10회', description: '사진으로 재료 등록 10회', icon: '📸', condition: 'PHOTO_REGISTER_COUNT', threshold: 10 },
 ]
 
-// 절약 추정 식비: 제때 소진 1회당 (백엔드 gamification/service.py 의 가정)
-export const SAVED_MONEY_PER_SAVE = 2300
+// 절약 추정 식비 (백엔드 INGREDIENT_PRICES): '유통기한 내 소진 보너스'를 받은 요리에서
+// 임박 재료(D-0~D-3) 값의 합계를 '버리지 않고 아낀 돈'으로 봅니다. 값은 요리 1번에 쓰는 양 기준(원)
+export const DEFAULT_INGREDIENT_PRICE = 2300 // 목록에 없는 재료
+export const INGREDIENT_PRICES = {
+  계란: 1000, // 2개
+  두부: 1500,
+  대파: 1000,
+  쪽파: 1000,
+  양파: 700,
+  감자: 800,
+  당근: 700,
+  애호박: 1500,
+  버섯: 1500,
+  콩나물: 1200,
+  고추: 500,
+  마늘: 500,
+  우유: 1500,
+  치즈: 1000,
+  김치: 1500,
+  어묵: 1500,
+  떡: 1500,
+  밥: 1000,
+  라면: 1000,
+  스팸: 3500,
+  햄: 2500,
+  소시지: 2500,
+  참치캔: 2500,
+  냉동만두: 3000,
+  돼지고기: 5000,
+  닭가슴살: 3000,
+  소고기: 8000,
+}
+
+export function ingredientPrice(name) {
+  return INGREDIENT_PRICES[name] ?? DEFAULT_INGREDIENT_PRICE
+}
+
+// 레벨 힌트 (백엔드 level_hint): 임박 재료로 요리 1번 = 요리 완료 + 소진 보너스 XP
+const XP_PER_SAVE_COOK = XP_TABLE.COOK_COMPLETE + XP_TABLE.EXPIRY_SAVE_BONUS
+
+// 150 → '임박 재료로 8번만 더 요리하면 달성!', 만렙(null) → null
+export function levelHint(xpToNextLevel) {
+  if (xpToNextLevel === null) return null
+  const times = Math.max(1, Math.ceil(xpToNextLevel / XP_PER_SAVE_COOK))
+  return `임박 재료로 ${times}번만 더 요리하면 달성!`
+}

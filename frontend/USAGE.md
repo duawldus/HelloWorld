@@ -78,10 +78,10 @@ const result = await deductIngredients([
   { id: tofu.id, amount: 1 }, // 두부 1모
   { id: egg.id, amount: 2 },  // 계란 2개
 ])
-// result: [{ id, name, amount: 뺀 양, left: 남은 양 }, ...]
+// result: [{ id, name, amount: 뺀 양, left: 남은 양, status: 'ACTIVE' | 'CONSUMED' }, ...]
 ```
 
-> 백엔드에는 '차감' API가 따로 없어서, 서버 모드에서는 수량 수정(PATCH)이나 삭제(DELETE)로 처리해요.
+> 서버 모드는 `POST /ingredients/deduct` 한 번으로 처리해요. 하나라도 없는 재료면 에러이고 아무것도 바뀌지 않아요.
 
 ## 3. 요리 완료 XP (레시피 화면)
 
@@ -176,7 +176,8 @@ showToast({ message: `+${result.xp.amount} XP!` })
 ```js
 const stats = await getStats()
 // { level: 3, title: '알뜰 자취러', xp: 240, next_level_xp: 390, xp_to_next_level: 150,
-//   current_streak: 7, best_streak: 12, saved_count: 14, saved_money_estimate: 32200, cook_count: 12 }
+//   current_streak: 7, best_streak: 12, saved_count: 14, saved_money_estimate: 32200, cook_count: 12,
+//   level_min_xp: 200, level_hint: '임박 재료로 8번만 더 요리하면 달성!' }
 
 const { acquired_count, total_count, badges } = await getBadges()
 // badges: [{ id, code, name, description, icon, acquired, acquired_at, progress, threshold }]
@@ -197,7 +198,7 @@ const rows = summarizeXpLogs(logs).slice(0, 5)
 // [{ id, title: '두부계란찜 요리 완료', reasons: ['유통기한 내 소진 보너스'], amount: 20, created_at }]
 relativeDayLabel(rows[0].created_at) // '오늘' / '어제' / '2일 전'
 
-// 서버 모드에서 백엔드가 아직 준비 중인 값 (false 면 '준비 중이에요'로 보여 주세요)
+// 백엔드가 준비됐는지 (지금은 두 모드 모두 true. false 면 '준비 중이에요'로 보여 주세요)
 STREAK_READY // 연속 기록 (current_streak, best_streak)
 BADGES_READY // 뱃지 획득 여부 (acquired)
 ```
@@ -375,7 +376,7 @@ export default function MyScreen() {
 | `addIngredient({ name: '두부' })` | 재료 추가 (프리셋 재료는 이름만 넣어도 수량·보관·유통기한 자동) |
 | `addIngredient({ name: '두부', preset_id: 2 }, 'PRESET')` | 두 번째 값은 등록 경로: `'PRESET'`(아이콘 탭) · `'MANUAL'`(기본) |
 | `updateIngredient(id, { quantity: 3 })` | 재료 수정 (`name`, `quantity`, `unit`, `storage`, `expires_on`) |
-| `consumeIngredient(id)` | 다 먹었어요 → '소진'으로 냉장고에서 빼기 (XP·통계 없음). 서버 모드는 백엔드 API가 생기기 전까지 에러 (`CAN_CONSUME`이 `false`) |
+| `consumeIngredient(id)` | 다 먹었어요 → '소진'으로 냉장고에서 빼기 (XP·통계 없음). 서버 모드는 `POST /ingredients/{id}/consume` |
 | `deleteIngredient(id)` | 버렸어요 → '폐기'로 냉장고에서 빼기 |
 | `withJosa('대파', '을', '를')` | 받침에 맞게 조사 붙이기 → `'대파를'` |
 | `recognizeIngredients(사진)` | 사진 속 재료 후보 `{ count, items: [{ name, preset_id, quantity, unit, storage, expires_on, confidence(0~1), needs_review }] }` |

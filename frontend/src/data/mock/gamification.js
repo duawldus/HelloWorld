@@ -1,7 +1,7 @@
 // 가짜 모드의 XP · 레벨 · 연속 기록 · 뱃지
 // 돌려주는 모양은 백엔드 gamification API 와 같습니다.
 import { loadProgress, saveProgress } from './storage.js'
-import { BADGES, LEVELS, SAVED_MONEY_PER_SAVE, XP_TABLE } from './rules.js'
+import { BADGES, DEFAULT_INGREDIENT_PRICE, LEVELS, XP_TABLE, levelHint } from './rules.js'
 import { addDays, todayString } from '../utils.js'
 
 const MAX_LOGS = 50
@@ -9,13 +9,25 @@ const MAX_LOGS = 50
 // GET /gamification/stats
 export async function getStats() {
   const progress = await loadProgress()
-  const saved = progress.counts.EXPIRY_SAVE_BONUS
   return {
     ...levelSummary(progress),
-    saved_count: saved,
-    saved_money_estimate: saved * SAVED_MONEY_PER_SAVE,
+    saved_count: progress.counts.EXPIRY_SAVE_BONUS,
+    saved_money_estimate: savedMoneyOf(progress),
     cook_count: progress.counts.COOK_COMPLETE,
   }
+}
+
+// 절약 추정 식비 누적(원). 예전 저장 데이터·더미에는 값이 없어서 '제때 소진 1회 = 2,300원'으로 시작
+// (더미: 14회 × 2,300 = 32,200 → 화면 '약 32,000원')
+function savedMoneyOf(progress) {
+  return progress.saved_money ?? progress.counts.EXPIRY_SAVE_BONUS * DEFAULT_INGREDIENT_PRICE
+}
+
+// 금액을 따로 안 넘기면 '유통기한 내 소진 보너스' 1개당 기본 가격으로 셉니다.
+function bonusMoney(actions) {
+  return (
+    actions.filter((action) => action === 'EXPIRY_SAVE_BONUS').length * DEFAULT_INGREDIENT_PRICE
+  )
 }
 
 // GET /gamification/badges
@@ -42,9 +54,11 @@ export async function getXpLogs(limit = 20) {
 
 // ----- 아래는 가짜 모드 안에서만 쓰는 함수 -----
 
-// XP 지급. entries: [{ action: 'COOK_COMPLETE', description: '요리 완료: 김치찌개' }, ...]
+// XP 지급. entries: [{ action: 'COOK_COMPLETE', description: '김치찌개 요리 완료' }, ...]
+// savedMoney: 이번에 아낀 돈(원). 보너스 요리에서 쓴 임박 재료 값의 합계 (mock/rules.js 의 ingredientPrice)
+//   생략하면 소진 보너스 1개당 기본 2,300원
 // 돌려주는 값: 백엔드 XpGain 모양 { amount, reasons, level_up, new_badges }
-export async function awardXp(entries) {
+export async function awardXp(entries, { savedMoney } = {}) {
   const before = await loadProgress()
   const now = new Date().toISOString()
   let logId = before.logs.reduce((max, log) => Math.max(max, log.id), 0)
@@ -65,6 +79,7 @@ export async function awardXp(entries) {
     xp: before.xp + amount,
     streak: nextStreak(before.streak, todayString()),
     counts,
+    saved_money: savedMoneyOf(before) + (savedMoney ?? bonusMoney(entries.map((e) => e.action))),
     logs: [...newLogs.reverse(), ...before.logs].slice(0, MAX_LOGS),
   }
 
@@ -85,8 +100,13 @@ export async function awardXp(entries) {
 
 // XP 회수 (요리 완료 실행 취소). 백엔드처럼 음수 XP 기록(COOK_UNDO)을 남기고,
 // 그때 늘렸던 행동 횟수(countedActions)를 되돌립니다. 이미 딴 뱃지·연속 기록은 그대로 둡니다.
-export async function revokeXp({ amount, countedActions, description }) {
+// savedMoney: 그 요리로 늘렸던 절약 식비 (생략하면 소진 보너스 1개당 기본 2,300원을 뺌)
+export async function revokeXp({ amount, countedActions, description, savedMoney }) {
   const before = await loadProgress()
+  const savedMoneyAfter = Math.max(
+    0,
+    savedMoneyOf(before) - (savedMoney ?? bonusMoney(countedActions)),
+  )
   const counts = { ...before.counts }
   for (const action of countedActions) counts[action] = Math.max(0, (counts[action] ?? 0) - 1)
   const log = {
@@ -100,6 +120,7 @@ export async function revokeXp({ amount, countedActions, description }) {
     ...before,
     xp: Math.max(0, before.xp - amount),
     counts,
+    saved_money: savedMoneyAfter,
     logs: [log, ...before.logs].slice(0, MAX_LOGS),
   })
 }
@@ -110,8 +131,9 @@ function levelFor(xp) {
 
 function levelSummary(progress) {
   const level = levelFor(progress.xp)
-  const [, , title] = LEVELS.find(([lv]) => lv === level)
+  const [, levelMinXp, title] = LEVELS.find(([lv]) => lv === level)
   const next = LEVELS.find(([lv]) => lv === level + 1)
+  const xpToNext = next ? next[1] - progress.xp : null
   const today = todayString()
   const { lastXpDate } = progress.streak
   // 어제도 오늘도 XP를 못 얻었으면 연속 기록은 끊긴 것
@@ -120,8 +142,10 @@ function levelSummary(progress) {
     level,
     title,
     xp: progress.xp,
+    level_min_xp: levelMinXp,
     next_level_xp: next ? next[1] : null,
-    xp_to_next_level: next ? next[1] - progress.xp : null,
+    xp_to_next_level: xpToNext,
+    level_hint: levelHint(xpToNext),
     current_streak: alive ? progress.streak.current : 0,
     best_streak: progress.streak.best,
   }

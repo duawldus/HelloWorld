@@ -4,14 +4,16 @@ import { findActive, toRead } from './ingredients.js'
 import { awardXp, revokeXp } from './gamification.js'
 import { findRecipe, matchedIngredientIds } from './recipes.js'
 
-// 재료 수량 차감 (XP 없음). 0 이하가 되면 냉장고에서 빠집니다.
-// 돌려주는 값: [{ id, name, amount(뺀 양), left(남은 양) }]
+// POST /ingredients/deduct 와 같게: 재료 수량 차감 (XP 없음). 0 이 되면 소진(CONSUMED)으로 냉장고에서 빠집니다.
+// 하나라도 없는 재료면 에러이고 아무것도 바뀌지 않습니다. (저장 전에 모두 확인)
+// 돌려주는 값: [{ id, name, amount(뺀 양), left(남은 양), status }]
 export async function deductIngredients(usedList) {
   const ingredients = await loadIngredients()
   const results = usedList.map(({ id, amount }) => {
     const item = findActive(ingredients, id)
     const used = Math.min(amount, item.quantity)
-    return { id, name: item.name, amount: used, left: item.quantity - used }
+    const left = item.quantity - used
+    return { id, name: item.name, amount: used, left, status: left > 0 ? 'ACTIVE' : 'CONSUMED' }
   })
   await saveIngredients(
     ingredients.map((item) => {

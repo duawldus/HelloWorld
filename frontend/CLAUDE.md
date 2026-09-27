@@ -7,7 +7,7 @@
 - **데이터 코드는 한 곳에**: 재료·레시피·알림·XP 등 데이터와 데이터를 다루는 코드는 `src/data/`에만 둔다. 화면에서는 `src/data/index.js`(`../data`)로만 가져다 쓴다. 사용법은 `USAGE.md`
 - **가짜 모드 / 서버 모드**: `src/data/config.js`의 `DATA_MODE`(`'mock'` 기본 / `'server'`) 한 줄로 바꾼다. 두 모드는 같은 이름·모양의 함수를 내보내서 화면 코드는 모드를 모른다. 모든 데이터 함수는 async이고 실패하면 에러를 던진다
 - **데이터 모양은 백엔드 API 응답 그대로** (`backend` 브랜치의 `backend/README.md`, `schemas.py`가 기준): `id`는 숫자, `expires_on`·`d_day`·`is_imminent` 같은 snake_case, 보관 위치는 `FRIDGE`/`FREEZER`/`ROOM`로 저장하고 화면에는 `storageLabel()`로 냉장/냉동/실온을 보여 준다
-- **백엔드에 없는 API**는 `BACKEND_REQUESTS.md`에 요청서로 정리하고, 서버 모드에서는 안내 에러를 낸다 (예: 소진 `CAN_CONSUME`)
+- **백엔드에 없는 API**는 `BACKEND_REQUESTS.md`에 요청서로 정리하고, 서버 모드에서는 준비 스위치(`CAN_CONSUME`, `STREAK_READY` 등)를 `false`로 두고 안내를 보여 준다
 - **저장/통신은 두 파일에서만**: 가짜 모드는 `src/data/mock/storage.js`(AsyncStorage), 서버 모드는 `src/data/server/api.js`(fetch + `X-Device-Id` 기기 번호 헤더)
 - **색상은 테마 파일에서만**: `src/theme/colors.js`에만 색 코드를 쓴다. 다른 파일은 `colors.primary`처럼 불러서 쓰고 `'#4a5ae8'` 같은 색 코드를 직접 쓰지 않는다
 - 아이콘은 이모지 대신 선 아이콘(react-native-svg)을 쓰고 `src/components/Icons.js`에 모은다

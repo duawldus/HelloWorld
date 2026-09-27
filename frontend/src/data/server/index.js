@@ -1,6 +1,6 @@
 // 서버 모드: 백엔드 API(backend/README.md, Swagger /docs)를 호출하는 구현.
 // mock/index.js 와 똑같은 이름·모양의 함수를 내보냅니다. 돌려주는 값은 백엔드 응답 그대로입니다.
-import { imageFormData, notReadyError, request } from './api.js'
+import { imageFormData, request } from './api.js'
 
 // ----- 재료 -----
 
@@ -34,12 +34,10 @@ export function updateIngredient(id, changes) {
   return request(`/ingredients/${id}`, { method: 'PATCH', body: changes })
 }
 
-// '다 먹었어요'(소진). ⚠️ 백엔드에 아직 API가 없음 → 요청서 frontend/BACKEND_REQUESTS.md
-// 백엔드가 만들면 아래 한 줄로 바꾸고 CAN_CONSUME 을 true 로 바꾸세요.
-//   return request(`/ingredients/${id}/consume`, { method: 'POST' })
-export const CAN_CONSUME = false
-export async function consumeIngredient() {
-  throw notReadyError()
+// POST /ingredients/{id}/consume → '다 먹었어요'(소진, CONSUMED). XP 없음
+export const CAN_CONSUME = true
+export function consumeIngredient(id) {
+  return request(`/ingredients/${id}/consume`, { method: 'POST' })
 }
 
 // DELETE /ingredients/{id} → 백엔드에서 '폐기(DISCARDED)'로 표시
@@ -47,20 +45,15 @@ export function deleteIngredient(id) {
   return request(`/ingredients/${id}`, { method: 'DELETE' })
 }
 
-// 재료 수량 차감 (XP 없음). 백엔드에 차감 API가 따로 없어서
-// 남은 양이 있으면 PATCH 로 수량을 바꾸고, 0 이하가 되면 DELETE 합니다.
-// 돌려주는 값: [{ id, name, amount(뺀 양), left(남은 양) }]
+// POST /ingredients/deduct → 재료 수량 차감 (XP 없음). 여러 개를 요청 한 번으로 처리
+// 남은 양이 0이 되면 소진(CONSUMED). 하나라도 없는 재료면 404 이고 아무것도 바뀌지 않음
+// 돌려주는 값: [{ id, name, amount(뺀 양), left(남은 양), status }]
 export async function deductIngredients(usedList) {
-  const results = []
-  for (const { id, amount } of usedList) {
-    const item = await getIngredient(id)
-    const used = Math.min(amount, item.quantity)
-    const left = item.quantity - used
-    if (left > 0) await updateIngredient(id, { quantity: left })
-    else await deleteIngredient(id)
-    results.push({ id, name: item.name, amount: used, left })
-  }
-  return results
+  const { items } = await request('/ingredients/deduct', {
+    method: 'POST',
+    body: { items: usedList.map(({ id, amount }) => ({ id, amount })) },
+  })
+  return items
 }
 
 // ----- 레시피 -----
@@ -142,12 +135,9 @@ export function unregisterPushDevice(token) {
 
 // ----- 성과 -----
 
-// ⚠️ 백엔드가 아직 준비 중인 부분 (API는 200을 주지만 값이 채워지지 않음 → 화면에 '준비 중이에요')
-// - 연속 기록: gamification.service.touch_streak 가 TODO → current_streak/best_streak 가 항상 0
-// - 뱃지 획득: gamification.service.evaluate_badges 가 TODO → acquired 가 항상 false
-// 백엔드가 구현하면 true 로 바꾸세요. (요청서 frontend/BACKEND_REQUESTS.md)
-export const STREAK_READY = false
-export const BADGES_READY = false
+// 연속 기록 갱신·뱃지 지급 모두 백엔드에 구현됨 (backend 0a19176)
+export const STREAK_READY = true
+export const BADGES_READY = true
 
 // GET /gamification/stats
 export function getStats() {
