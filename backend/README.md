@@ -132,14 +132,14 @@ backend/
 
 | 기능 | 관련 화면 | 담당 | 상태 | 남은 TODO |
 | --- | --- | --- | --- | --- |
-| `ingredients` | 2 냉장고, 3 식재료 추가 | 팀원 | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
-| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 팀원 | 🚧 | Gemini 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
-| `users` | 0 온보딩 · 기본 양념 | WSY129 | ✅ | |
-| `home` | 1 홈 대시보드 | WSY129 | ✅ | |
-| `recipes` | 4 레시피 추천, 5 레시피 상세 | WSY129 | 🚧 | 추천·AI 생성·인분 조절 완료 → **요리 완료(재료 소진 + XP)**, **실행 취소**, AI 프롬프트 튜닝 |
-| `reminders` | 6 생활 알림, 7 알림 추가 | WSY129 | ✅ | 같은 회차 중복 완료 방지 |
-| `gamification` | 8 성과 · 뱃지 | WSY129 | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
-| `notifications` | 9 푸시 알림 | WSY129 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
+| `ingredients` | 2 냉장고, 3 식재료 추가 | 염지연 | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
+| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 염지연 | 🚧 | Gemini 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
+| `users` | 0 온보딩 · 기본 양념 | 우시연 | ✅ | |
+| `home` | 1 홈 대시보드 | 우시연 | ✅ | |
+| `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절 완료 → **요리 완료(재료 소진 + XP)**, **실행 취소**, AI 프롬프트 튜닝 |
+| `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | 같은 회차 중복 완료 방지 |
+| `gamification` | 8 성과 · 뱃지 | 우시연 | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
+| `notifications` | 9 푸시 알림 | 우시연 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
 
 - 아직 구현 안 된 기능은 `raise NotImplementedError` → API가 **501**을 돌려줍니다. 요청/응답 스키마는 이미 정의돼 있어서 **프론트는 Swagger 보고 먼저 붙일 수 있어요.**
 - 코드에서 할 일 찾기: `grep -rn "TODO(" app/` → `TODO(recipes)`처럼 기능 이름이 붙어 있습니다.
@@ -147,8 +147,8 @@ backend/
 
 ### 경계가 겹치는 곳
 
-- `recipes`(WSY129)는 냉장고 재료를 `ingredients.list_active()`로 읽기만 해요. 요리 완료 시 재료 소진 처리가 필요하면 **`ingredients` 쪽에 공개 함수를 추가해달라고 요청**하거나, 합의 후 추가해주세요.
-- `ingredients`·`vision`(팀원)이 XP를 줄 때는 `gamification.award_xp()`만 호출해요. XP 수치는 WSY129가 `rules.py`에서 관리.
+- `recipes`(우시연)는 냉장고 재료를 `ingredients.list_active()`로 읽기만 해요. 요리 완료 시 재료 소진 처리가 필요하면 **`ingredients` 쪽에 공개 함수를 추가해달라고 요청**하거나, 합의 후 추가해주세요.
+- `ingredients`·`vision`(염지연)이 XP를 줄 때는 `gamification.award_xp()`만 호출해요. XP 수치는 우시연이 `rules.py`에서 관리.
 
 ---
 
