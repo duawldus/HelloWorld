@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.common.config import settings
 from app.common.exceptions import NotFoundError, ValidationError
-from app.common.time import d_day, today
+from app.common.time import d_day, now, today
 from app.features.gamification import service as gamification
 from app.features.gamification.rules import XpAction
 from app.features.gamification.schemas import XpGain
@@ -197,6 +197,27 @@ def update_ingredient(db: Session, user: User, ingredient_id: int, data: Ingredi
         # 사진 인식이 틀려 이름을 고친 경우: 아이콘·레시피 매칭이 새 이름을 따르도록 프리셋도 다시 찾는다
         preset = find_preset_by_name(db, ingredient.name)
         ingredient.preset_id = preset.id if preset else None
+    db.commit()
+    return read_one(db, ingredient)
+
+
+def consume_ingredients(db: Session, user: User, ingredient_ids: list[int]) -> list[Ingredient]:
+    """재료를 소진(CONSUMED) 처리한다. recipes 도메인(요리 완료)도 사용하는 공개 함수.
+
+    XP는 주지 않고 commit 하지 않는다. 호출한 쪽에서 XP 지급 등 나머지 처리를 한 뒤 commit 한다.
+    하나라도 없는 재료·남의 재료·이미 빠진 재료면 NotFoundError.
+    """
+    ingredients = [get_owned(db, user, i) for i in dict.fromkeys(ingredient_ids)]
+    consumed_at = now()
+    for ingredient in ingredients:
+        ingredient.status = IngredientStatus.CONSUMED
+        ingredient.consumed_at = consumed_at
+    return ingredients
+
+
+def consume_ingredient(db: Session, user: User, ingredient_id: int) -> IngredientRead:
+    """[화면 2] '다 먹었어요'. 폐기와 구분해서 소진으로 기록한다 (XP 없음)."""
+    (ingredient,) = consume_ingredients(db, user, [ingredient_id])
     db.commit()
     return read_one(db, ingredient)
 

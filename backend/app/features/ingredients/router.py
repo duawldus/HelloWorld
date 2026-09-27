@@ -64,6 +64,12 @@ def update_ingredient(ingredient_id: int, data: IngredientUpdate, db: DbSession,
     return service.update_ingredient(db, user, ingredient_id, data)
 
 
+@router.post("/{ingredient_id}/consume", response_model=IngredientRead)
+def consume_ingredient(ingredient_id: int, db: DbSession, user: CurrentUser):
+    """'다 먹었어요' → 소진(CONSUMED). XP 없음. '버렸어요'(폐기)는 DELETE."""
+    return service.consume_ingredient(db, user, ingredient_id)
+
+
 @router.delete("/{ingredient_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_ingredient(ingredient_id: int, db: DbSession, user: CurrentUser):
     service.delete_ingredient(db, user, ingredient_id)

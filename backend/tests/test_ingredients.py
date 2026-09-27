@@ -137,3 +137,43 @@ def test_edit_photo_registered_ingredient(client, device_headers):
     ).json()
     assert body["preset_id"] is None
     assert body["expires_on"] == "2099-01-01"
+
+
+def test_consume_ingredient(client, device_headers):
+    """'다 먹었어요' → 소진(CONSUMED). 냉장고에서 빠지고 XP는 없다."""
+    tofu = client.post(API, json={"name": "두부"}, headers=device_headers).json()
+    egg = client.post(API, json={"name": "계란"}, headers=device_headers).json()
+
+    res = client.post(f"{API}/{tofu['id']}/consume", headers=device_headers)
+    assert res.status_code == 200
+    assert res.json()["status"] == "CONSUMED"
+
+    fridge = client.get(API, headers=device_headers).json()
+    assert [i["name"] for i in fridge["items"]] == ["계란"]
+    assert client.get("/api/v1/gamification/stats", headers=device_headers).json()["xp"] == 0
+
+    # 이미 소진한 재료 / 남의 재료 / 없는 재료 → 404
+    assert client.post(f"{API}/{tofu['id']}/consume", headers=device_headers).status_code == 404
+    other = {"X-Device-Id": "other-device-0002"}
+    assert client.post(f"{API}/{egg['id']}/consume", headers=other).status_code == 404
+    assert client.post(f"{API}/9999/consume", headers=device_headers).status_code == 404
+
+
+def test_consume_ingredients_public_function(db):
+    """recipes(요리 완료)가 쓰는 공개 함수: 여러 개를 한 번에, 중복 id는 한 번만."""
+    from app.features.ingredients import service
+    from app.features.ingredients.models import IngredientStatus
+    from app.features.ingredients.schemas import IngredientCreate
+    from app.features.users.models import User
+
+    user = User(device_id="service-test-0001")
+    db.add(user)
+    db.flush()
+    a = service.create_ingredient(db, user, IngredientCreate(name="두부"), "MANUAL")
+    b = service.create_ingredient(db, user, IngredientCreate(name="대파"), "MANUAL")
+
+    consumed = service.consume_ingredients(db, user, [a.id, b.id, a.id])
+    db.commit()
+    assert len(consumed) == 2
+    assert all(i.status == IngredientStatus.CONSUMED and i.consumed_at for i in consumed)
+    assert service.list_active(db, user.id) == []

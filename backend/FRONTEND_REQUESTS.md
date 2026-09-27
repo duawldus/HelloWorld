@@ -125,7 +125,7 @@ uvicorn app.main:app --reload
 
 | 요청 | 담당 | 상태 |
 | --- | --- | --- |
-| 1. 재료 소진 API (`POST /ingredients/{id}/consume`) | 염지연 | ⏳ 요청 전달 예정 |
+| 1. 재료 소진 API (`POST /ingredients/{id}/consume`) | 염지연 | ✅ 완료 — 요청서 모양 그대로. 프론트는 `CAN_CONSUME = true` + `consumeIngredient` 연결 부탁드려요 |
 | 2-1. 연속 기록(streak) 갱신 | 우시연 | ⏳ 예정 |
 | 2-2. 뱃지 지급 | 우시연 | ⏳ 예정 |
 | 2-3. `level_min_xp` 추가 | 우시연 | ⏳ 예정 |

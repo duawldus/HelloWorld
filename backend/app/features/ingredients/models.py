@@ -16,7 +16,7 @@ class StorageType(StrEnum):
 
 class IngredientStatus(StrEnum):
     ACTIVE = "ACTIVE"  # 냉장고에 있음
-    CONSUMED = "CONSUMED"  # 요리로 소진
+    CONSUMED = "CONSUMED"  # 요리 완료 또는 '다 먹었어요'로 소진
     DISCARDED = "DISCARDED"  # 삭제/폐기
 
 
