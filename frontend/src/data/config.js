@@ -9,3 +9,6 @@ export const DATA_MODE = 'mock'
 // - 폰(Expo Go)으로 테스트: PC의 IP 주소. 예) 'http://192.168.0.12:8000'
 //   (폰에서 localhost 는 폰 자신이라 PC 서버에 닿지 않아요. PC IP는 cmd 에서 ipconfig 로 확인)
 export const API_BASE_URL = 'http://localhost:8000'
+
+// 개발용: true 면 앱을 켤 때마다 온보딩(기본 양념 설정)이 뜹니다. 커밋할 때는 false 로!
+export const DEV_ALWAYS_SHOW_ONBOARDING = false

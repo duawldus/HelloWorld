@@ -16,4 +16,5 @@ export const CAN_CONSUME = true
 export { deductIngredients, completeCooking, completeChore } from './actions.js'
 export { getStats, getBadges, getXpLogs } from './gamification.js'
 export { recognizeIngredients } from './vision.js'
+export { isOnboarded, getSeasonings, saveSeasonings } from './seasonings.js'
 export { resetAllData } from './storage.js'

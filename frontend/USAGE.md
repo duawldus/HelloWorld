@@ -141,6 +141,37 @@ const logs = await getXpLogs(20) // 최근 XP 기록 (최신순)
 // [{ id, action: 'COOK_COMPLETE', amount: 10, description: '요리 완료: 김치볶음밥', created_at }]
 ```
 
+## 6. 보유 양념 가져오기 (레시피 매칭)
+
+온보딩(기본 양념 설정)에서 사용자가 고른 양념이에요. 레시피 매칭할 때 **'보유 재료'로 쳐 주세요.**
+냉장고 재료 목록(`getIngredients`)에는 섞여 있지 않아서 따로 불러와야 해요.
+
+```js
+import { getIngredients, getOwnedSeasonings } from '../data'
+
+const seasonings = await getOwnedSeasonings()
+// [{ id: 1, name: '간장', icon: '🫙' }, { id: 2, name: '식용유', icon: '🛢️' }, ...]
+
+// 예) 레시피 재료 중 내가 가진 것 확인
+const fridge = await getIngredients()
+const ownedNames = new Set([
+  ...fridge.items.map((item) => item.name),
+  ...seasonings.map((s) => s.name),
+])
+const hasSoySauce = ownedNames.has('간장') // true
+```
+
+- 서버 모드: `GET /users/me/seasonings`의 `owned: true`인 것만 돌려줘요. (백엔드 레시피 추천도 같은 값을 써요)
+- 양념 전체 목록(보유 여부 포함)이 필요하면 `getSeasonings()` → `[{ id, name, icon, owned }]` (12종)
+- 저장은 `saveSeasonings([1, 2, 3])` (양념 id 목록, **전체 교체**). 보통은 온보딩 화면이 알아서 해요.
+
+### 설정에서 양념 다시 고르기
+같은 온보딩 화면을 **수정 모드**로 열면 돼요. 저장하면 이전 화면으로 돌아가요.
+
+```js
+router.push({ pathname: '/onboarding', params: { mode: 'edit' } })
+```
+
 ---
 
 ## 화면에서 불러오기 예시 (React Native)

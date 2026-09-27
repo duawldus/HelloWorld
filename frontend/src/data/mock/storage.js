@@ -17,7 +17,11 @@ const KEYS = {
   ingredients: 'bangguseok.ingredients',
   progress: 'bangguseok.progress',
   meta: 'bangguseok.meta', // { version, baseDate }
+  seasonings: 'bangguseok.seasonings', // { onboarded, owned_ids } — 냉장고 재료와 따로 저장
 }
+
+// 처음 설치 상태: 온보딩 전, 보유 양념 없음
+const initialSeasoningState = () => ({ onboarded: false, owned_ids: [] })
 
 // 재료 목록
 export async function loadIngredients() {
@@ -39,10 +43,21 @@ export async function saveProgress(progress) {
   await write(KEYS.progress, progress)
 }
 
-// 저장된 데이터를 지우고 더미 데이터로 다시 시작 (테스트용)
+// 기본 양념 · 온보딩 완료 여부
+export async function loadSeasoningState() {
+  await ensurePrepared()
+  return readOrCreate(KEYS.seasonings, initialSeasoningState)
+}
+
+export async function saveSeasoningState(state) {
+  await write(KEYS.seasonings, state)
+}
+
+// 저장된 데이터를 지우고 더미 데이터로 다시 시작 (테스트용). 온보딩도 다시 뜹니다.
 export async function resetAllData() {
   await write(KEYS.ingredients, createDummyIngredients())
   await write(KEYS.progress, createDummyProgress())
+  await write(KEYS.seasonings, initialSeasoningState())
   await write(KEYS.meta, { version: DATA_VERSION, baseDate: todayString() })
 }
 

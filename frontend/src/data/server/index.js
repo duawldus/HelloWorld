@@ -96,6 +96,23 @@ export function getXpLogs(limit = 20) {
   return request('/gamification/xp-logs', { query: { limit } })
 }
 
+// ----- 기본 양념 · 온보딩 -----
+
+// GET /users/me 의 onboarded
+export async function isOnboarded() {
+  return (await request('/users/me')).onboarded
+}
+
+// GET /users/me/seasonings → [{ id, name, icon, owned }]
+export function getSeasonings() {
+  return request('/users/me/seasonings')
+}
+
+// PUT /users/me/seasonings (보유 양념 전체 교체 + 온보딩 완료)
+export function saveSeasonings(seasoningIds) {
+  return request('/users/me/seasonings', { method: 'PUT', body: { seasoning_ids: seasoningIds } })
+}
+
 // ----- 사진 인식 -----
 
 // POST /vision/recognize (multipart 'image') → { count, items }

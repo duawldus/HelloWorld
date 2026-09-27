@@ -21,6 +21,7 @@
   - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀)
   - `(tabs)/_layout.js`: 하단 탭바 (홈/냉장고/레시피/생활알림)
   - `(tabs)/`: 탭바가 보이는 화면 (`index.js` 홈, `fridge.js` 냉장고, `recipe.js`, `alert.js`)
+  - `onboarding.js`: 온보딩 · 기본 양념 설정 (처음 켰을 때만. `(tabs)/_layout.js`가 온보딩 전이면 여기로 보냄, `?mode=edit`는 수정 모드)
   - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
 - `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `BottomSheet.js` 아래에서 올라오는 창, `Icons.js` 아이콘)
@@ -32,6 +33,7 @@
   - `server/`: 서버 모드. `api.js`(통신·토큰·에러), `index.js`(API별 함수)
   - `mock/`: 가짜 모드. 백엔드와 똑같이 동작하도록 흉내 냄
     - `rules.js`(XP·레벨·뱃지·임박·인식 기준), `presets.js`(재료 프리셋): 백엔드 `gamification/rules.py`, `seeds/data.py`와 같은 값으로 유지한다. 가짜 모드에서만 쓴다
+    - `seasonings.js`: 기본 양념 12종(백엔드 seeds와 같은 값)과 보유 양념·온보딩 완료 여부
     - `dummyData.js`: 처음 시작 데이터. 바꾸면 `mock/storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
     - `KEEP_DATES_FROM_TODAY = true`(`mock/storage.js`): 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용)
 
@@ -45,6 +47,7 @@
 - `npx expo start --web`: 웹 브라우저로 바로 열기
 - `npx expo install <패키지>`: 패키지 설치는 npm install 대신 항상 이것으로 (SDK에 맞는 버전 설치)
 - `npx expo-doctor`: 설정·패키지 버전 문제 검사
+- 온보딩 다시 보기(개발용): `src/data/config.js`의 `DEV_ALWAYS_SHOW_ONBOARDING = true` (커밋 전 `false`로), 또는 웹에서 `http://localhost:8081/onboarding` 주소로 이동
 
 ## Expo 주의
 - Expo SDK 57. Expo는 버전마다 API가 바뀌므로 코드를 쓰기 전에 `https://docs.expo.dev/versions/v57.0.0/` 문서를 확인한다

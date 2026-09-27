@@ -1,11 +1,25 @@
 // 하단 탭바 (홈 / 냉장고 / 레시피 / 생활알림)
 // 선택된 탭은 메인 색상, 나머지는 회색
-import { Platform } from 'react-native'
-import { Tabs } from 'expo-router'
+// 온보딩(기본 양념 설정)을 아직 안 했으면 탭 화면 대신 /onboarding 으로 보냅니다.
+import { useEffect, useState } from 'react'
+import { Platform, View } from 'react-native'
+import { Redirect, Tabs } from 'expo-router'
+import { isOnboarded } from '../../data'
 import { BellIcon, FridgeIcon, HomeIcon, RecipeIcon } from '../../components/Icons'
 import { colors } from '../../theme/colors'
 
 export default function TabLayout() {
+  const [onboarded, setOnboarded] = useState(null) // null = 확인 중
+
+  useEffect(() => {
+    isOnboarded()
+      .then(setOnboarded)
+      .catch(() => setOnboarded(true)) // 서버 연결 실패 등: 막지 않고 홈을 보여 줌 (홈에서 에러 표시)
+  }, [])
+
+  if (onboarded === null) return <View style={{ flex: 1, backgroundColor: colors.screenBg }} />
+  if (!onboarded) return <Redirect href="/onboarding" />
+
   return (
     <Tabs
       screenOptions={{

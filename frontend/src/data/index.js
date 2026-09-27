@@ -4,7 +4,7 @@
 // config.js 의 DATA_MODE 에 따라 가짜 모드(mock/) 또는 서버 모드(server/) 구현을 연결합니다.
 // 두 모드는 함수 이름과 돌려주는 모양이 같아서, 화면 코드는 모드를 몰라도 됩니다.
 // 모든 함수는 async 이고, 실패하면 에러를 던집니다. (error.message 를 화면에 보여 주면 됨)
-import { DATA_MODE } from './config.js'
+import { DATA_MODE, DEV_ALWAYS_SHOW_ONBOARDING } from './config.js'
 import * as mock from './mock/index.js'
 import * as server from './server/index.js'
 
@@ -36,8 +36,36 @@ export const getXpLogs = (...args) => impl.getXpLogs(...args)
 // 사진 인식
 export const recognizeIngredients = (...args) => impl.recognizeIngredients(...args)
 
-// 테스트용: 가짜 모드는 더미 데이터로 초기화, 서버 모드는 로그인 토큰만 지움
-export const resetAllData = (...args) => impl.resetAllData(...args)
+// 기본 양념 (온보딩). 냉장고 재료 목록과는 따로 저장돼요.
+export const getSeasonings = (...args) => impl.getSeasonings(...args) // 전체 + owned
+// 레시피 매칭용 '보유 양념'만 → [{ id, name, icon }]
+export const getOwnedSeasonings = async () =>
+  (await impl.getSeasonings())
+    .filter((seasoning) => seasoning.owned)
+    .map(({ id, name, icon }) => ({ id, name, icon }))
+
+// 온보딩 완료 여부는 앱을 켠 동안 한 번만 확인해서 기억해 둡니다.
+let onboardedCache = null
+
+export async function isOnboarded() {
+  if (onboardedCache === null) {
+    onboardedCache = DEV_ALWAYS_SHOW_ONBOARDING ? false : await impl.isOnboarded()
+  }
+  return onboardedCache
+}
+
+// 보유 양념 저장 (전체 교체) + 온보딩 완료 처리
+export async function saveSeasonings(seasoningIds) {
+  const result = await impl.saveSeasonings(seasoningIds)
+  onboardedCache = true
+  return result
+}
+
+// 테스트용: 가짜 모드는 더미 데이터로 초기화(온보딩도 다시), 서버 모드는 로그인 토큰만 지움
+export async function resetAllData() {
+  onboardedCache = null
+  await impl.resetAllData()
+}
 
 // 두 모드 공통 도구
 export {
