@@ -35,7 +35,8 @@ export default function RootLayout() {
           showPhoneFrame ? [styles.phoneFrame, { height: Math.min(844, height - 32) }] : styles.app
         }
       >
-        <StatusBar style="dark" />
+        {/* 상태바 글씨: 파란 스플래시 위에서는 흰색, 사라진 뒤에는 밝은 화면에 맞춰 어두운 색 */}
+        <StatusBar style={splashDone ? 'dark' : 'light'} />
         <Stack screenOptions={{ headerShown: false }} />
         {!splashDone && <SplashOverlay ready={dataReady} onFinish={finishSplash} />}
       </View>

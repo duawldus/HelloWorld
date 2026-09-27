@@ -3,9 +3,9 @@
 // - 탭바·헤더 등 모든 화면 위에 휴대폰 화면 전체(상태바·아래 영역 포함)를 덮습니다.
 // - 뒤에서는 이미 온보딩/홈 화면이 준비되고 있어서, 사라지면 바로 그 화면이 보입니다.
 // - 개발 중에는 src/data/config.js 의 DEV_SKIP_SPLASH = true 로 1.5초 기다리기를 끌 수 있습니다.
+// - 상태바 글씨 색(떠 있는 동안 흰색 → 사라지면 어두운 색)은 app/_layout.js 가 정합니다.
 import { useEffect, useRef, useState } from 'react'
 import { Animated, Platform, StyleSheet, Text } from 'react-native'
-import { StatusBar } from 'expo-status-bar'
 import { DEV_SKIP_SPLASH } from '../data'
 import { colors } from '../theme/colors'
 
@@ -17,6 +17,7 @@ export function SplashOverlay({ ready, onFinish }) {
   const [minTimePassed, setMinTimePassed] = useState(DEV_SKIP_SPLASH)
   const [fading, setFading] = useState(false)
   const opacity = useRef(new Animated.Value(1)).current
+  const finished = useRef(false)
 
   useEffect(() => {
     if (DEV_SKIP_SPLASH) return
@@ -27,11 +28,19 @@ export function SplashOverlay({ ready, onFinish }) {
   useEffect(() => {
     if (!ready || !minTimePassed || fading) return
     setFading(true)
+    const duration = DEV_SKIP_SPLASH ? 0 : FADE_MS
+    // 한 번만 끝내기: 애니메이션 끝 알림, 또는 폰에서 알림이 안 올 때를 대비한 예비 타이머
+    const finish = () => {
+      if (finished.current) return
+      finished.current = true
+      onFinish()
+    }
     Animated.timing(opacity, {
       toValue: 0,
-      duration: DEV_SKIP_SPLASH ? 0 : FADE_MS,
+      duration,
       useNativeDriver: Platform.OS !== 'web',
-    }).start(() => onFinish())
+    }).start(finish)
+    setTimeout(finish, duration + 100)
   }, [ready, minTimePassed, fading, opacity, onFinish])
 
   return (
@@ -40,8 +49,6 @@ export function SplashOverlay({ ready, onFinish }) {
       pointerEvents={fading ? 'none' : 'auto'} // 떠 있는 동안은 뒤 화면을 누를 수 없게
       accessibilityLabel="방구석 매니저"
     >
-      {/* 파란 배경 위라 상태바 글씨를 흰색으로 */}
-      {!fading && <StatusBar style="light" />}
       <Text style={styles.title}>방구석 매니저</Text>
     </Animated.View>
   )
@@ -49,10 +56,13 @@ export function SplashOverlay({ ready, onFinish }) {
 
 const styles = StyleSheet.create({
   splash: {
-    ...StyleSheet.absoluteFillObject,
-    // 뒤 화면의 탭바·헤더보다 항상 위에 (Android 는 elevation 이 높은 뷰가 위에 그려져서 둘 다 줌)
-    zIndex: 1000,
-    elevation: 1000,
+    position: 'absolute', // 화면 전체 덮기 (RN 0.86 에는 absoluteFillObject 가 없어서 직접 씀)
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1000, // 모든 화면보다 위
+    elevation: 1000, // 안드로이드에서도 가장 위
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
