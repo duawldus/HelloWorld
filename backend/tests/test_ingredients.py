@@ -69,3 +69,71 @@ def test_llm_vision_client_uses_common_llm(monkeypatch):
     assert items[0].name == "두부"
     assert captured["images"] == [(b"img", "image/png")]
     assert "두부, 계란" in captured["prompt"]
+
+
+def test_find_preset_by_name_synonyms(db):
+    from app.features.ingredients.service import find_preset_by_name
+
+    def name_of(text):
+        preset = find_preset_by_name(db, text)
+        return preset.name if preset else None
+
+    assert name_of("두부") == "두부"
+    assert name_of("달걀") == "계란"
+    assert name_of("파") == "대파"
+    assert name_of("양파") == "양파"
+    assert name_of("돼지고기 앞다리살") == "돼지고기"
+    assert name_of("새송이 버섯") == "버섯"
+    assert name_of("고추장") is None  # '고추'가 들어 있어도 다른 재료
+
+
+def test_vision_merges_duplicates_and_uses_preset_names(client, device_headers):
+    from app.features.vision import service as vision_service
+    from app.features.vision.client import RawDetection
+
+    class FakeClient:
+        def detect_ingredients(self, image, content_type):
+            return [
+                RawDetection(name="달걀", quantity=6, unit="개", confidence=0.9),
+                RawDetection(name="계란", quantity=4, unit="개", confidence=0.7),
+                RawDetection(name="파", confidence=92),  # 퍼센트로 온 경우
+                RawDetection(name="  ", confidence=0.5),  # 빈 이름은 버림
+                RawDetection(name="아보카도", confidence=0.6),  # 프리셋에 없는 재료
+            ]
+
+    client.app.dependency_overrides[vision_service.get_client] = lambda: FakeClient()
+    files = {"image": ("fridge.jpg", b"fake-bytes", "image/jpeg")}
+    body = client.post("/api/v1/vision/recognize", files=files, headers=device_headers).json()
+    del client.app.dependency_overrides[vision_service.get_client]
+
+    items = {i["name"]: i for i in body["items"]}
+    assert body["count"] == 3
+    assert items["계란"]["quantity"] == 10
+    assert items["계란"]["confidence"] == 0.9
+    assert items["계란"]["needs_review"] is False
+    assert items["대파"]["confidence"] == 0.92
+    assert items["대파"]["unit"] == "단"  # 양을 모르면 프리셋 기본값
+    assert items["아보카도"]["preset_id"] is None
+    assert items["아보카도"]["needs_review"] is True
+
+
+def test_edit_photo_registered_ingredient(client, device_headers):
+    """사진으로 잘못 등록된 재료도 이름·수량·유통기한을 고칠 수 있고, 이름을 고치면 프리셋도 따라 바뀐다."""
+    res = client.post(
+        f"{API}/batch",
+        json={"source": "PHOTO", "items": [{"name": "버섯"}, {"name": "호박잎"}]},
+        headers=device_headers,
+    )
+    mushroom, leaf = res.json()["items"]
+    assert mushroom["source"] == "PHOTO"
+
+    body = client.patch(f"{API}/{mushroom['id']}", json={"name": "달걀", "quantity": 6}, headers=device_headers).json()
+    assert body["name"] == "달걀"
+    assert body["quantity"] == 6
+    assert body["icon"] == "🥚"  # 버섯 아이콘이 남지 않음
+
+    body = client.patch(
+        f"{API}/{leaf['id']}", json={"name": "깻잎", "expires_on": "2099-01-01"}, headers=device_headers
+    ).json()
+    assert body["preset_id"] is None
+    assert body["expires_on"] == "2099-01-01"

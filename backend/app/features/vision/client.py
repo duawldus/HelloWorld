@@ -36,16 +36,22 @@ class MockVisionClient:
 
 
 SYSTEM_PROMPT = (
-    "너는 자취생 냉장고 관리 앱의 식재료 인식기다. "
-    "사진 속에서 먹을 수 있는 식재료와 식품만 찾아 목록으로 돌려준다. "
-    "그릇, 포장재 브랜드명, 가전제품은 제외한다."
+    "너는 자취생 냉장고 관리 앱의 식재료 인식기다. 사진 속에서 먹을 수 있는 식재료와 식품만 찾아 목록으로 돌려준다.\n"
+    "규칙:\n"
+    "- 같은 재료는 한 번만 적고, 보이는 개수를 모두 더해 quantity 에 적는다.\n"
+    "- name 은 브랜드명이 아닌 한국어 일반명으로 적는다. (예: '서울우유' → '우유')\n"
+    "- unit 은 개, 모, 단, 봉, 팩, 캔, 통, g 중 알맞은 것을 쓴다. 양을 알 수 없으면 quantity 와 unit 을 null 로 둔다.\n"
+    "- 간장, 고추장, 케첩 같은 양념·소스는 앱에서 따로 관리하므로 제외한다.\n"
+    "- 그릇, 포장재, 가전제품 등 먹을 수 없는 것은 제외한다.\n"
+    "- 확실히 보이는 것만 적고 추측해서 지어내지 않는다.\n"
+    "- confidence 는 0.0~1.0 사이 소수다. 가려져 있거나 포장 때문에 확실하지 않으면 0.8 미만으로 낮게 준다."
 )
 
 
 class LLMVisionClient:
     """Gemini 멀티모달로 사진 속 재료 인식.
 
-    TODO(vision): 실제 사진으로 프롬프트 튜닝 (프리셋 이름 목록을 프롬프트에 넣어 이름 통일 등)
+    TODO(vision): 실제 사진으로 결과를 확인하며 SYSTEM_PROMPT 조정
     """
 
     def __init__(self, preset_names: list[str]):
@@ -54,9 +60,8 @@ class LLMVisionClient:
     def detect_ingredients(self, image: bytes, content_type: str) -> list[RawDetection]:
         prompt = (
             "이 사진에 있는 식재료를 모두 찾아줘. "
-            f"가능하면 다음 이름 중 하나로 불러줘: {', '.join(self.preset_names)}. "
-            "목록에 없는 재료는 한국어 일반명으로 적어줘. "
-            "confidence 는 그 재료가 맞다고 확신하는 정도야."
+            f"다음 목록에 있는 재료는 반드시 목록의 이름 그대로 적어줘: {', '.join(self.preset_names)}. "
+            "목록에 없는 재료는 한국어 일반명으로 적어줘."
         )
         result = generate_structured(DetectionResult, prompt, system=SYSTEM_PROMPT, images=[(image, content_type)])
         return result.items

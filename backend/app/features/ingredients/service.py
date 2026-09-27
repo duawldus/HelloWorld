@@ -41,9 +41,47 @@ def list_presets(db: Session, q: str | None = None, frequent_only: bool = False)
     return list(db.scalars(stmt))
 
 
+# 사진 인식·직접 입력에서 자주 나오는 다른 이름 → 프리셋 이름 (키는 띄어쓰기 없이)
+PRESET_ALIASES = {
+    "달걀": "계란",
+    "파": "대파",
+    "쇠고기": "소고기",
+    "참치": "참치캔",
+    "만두": "냉동만두",
+    "소세지": "소시지",
+    "햇반": "밥",
+    "즉석밥": "밥",
+    "흰쌀밥": "밥",
+    "흰우유": "우유",
+    "배추김치": "김치",
+    "포기김치": "김치",
+    "청양고추": "고추",
+    "풋고추": "고추",
+    "깐마늘": "마늘",
+    "다진마늘": "마늘",
+    "새송이버섯": "버섯",
+    "팽이버섯": "버섯",
+    "표고버섯": "버섯",
+    "양송이버섯": "버섯",
+    "느타리버섯": "버섯",
+    "떡볶이떡": "떡",
+    "가래떡": "떡",
+    "슬라이스치즈": "치즈",
+}
+
+
 def find_preset_by_name(db: Session, name: str) -> IngredientPreset | None:
-    """vision 도메인도 사용하는 공개 함수. TODO(ingredients): 동의어/유사어 매칭('파'→'대파')"""
-    return db.scalar(select(IngredientPreset).where(IngredientPreset.name == name.strip()))
+    """이름으로 프리셋 찾기. vision 도메인도 사용하는 공개 함수.
+
+    1) 이름 그대로 2) 동의어 사전('달걀'→'계란') 3) 띄어쓴 단어 중 프리셋 이름('돼지고기 앞다리살'→'돼지고기')
+    """
+    presets = {p.name: p for p in list_presets(db)}
+    compact = name.replace(" ", "")
+    for word in (compact, *name.split()):
+        word = PRESET_ALIASES.get(word, word)
+        if word in presets:
+            return presets[word]
+    return None
 
 
 # ---------- 조회 ----------
@@ -152,8 +190,13 @@ def create_batch(
 
 def update_ingredient(db: Session, user: User, ingredient_id: int, data: IngredientUpdate) -> IngredientRead:
     ingredient = get_owned(db, user, ingredient_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(ingredient, key, value)
+    if "name" in changes:
+        # 사진 인식이 틀려 이름을 고친 경우: 아이콘·레시피 매칭이 새 이름을 따르도록 프리셋도 다시 찾는다
+        preset = find_preset_by_name(db, ingredient.name)
+        ingredient.preset_id = preset.id if preset else None
     db.commit()
     return read_one(db, ingredient)
 
