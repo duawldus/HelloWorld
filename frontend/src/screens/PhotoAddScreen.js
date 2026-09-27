@@ -207,7 +207,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
   },
   analyzing: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', // 화면 전체 덮기 (RN 0.86 에는 absoluteFillObject 가 없어서 직접 씀)
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 14,
