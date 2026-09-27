@@ -12,9 +12,11 @@ class LevelSummary(BaseModel):
     level: int
     title: str  # 예: "알뜰 자취러"
     xp: int
+    level_min_xp: int  # 현재 레벨 시작 누적 XP (진행 바 계산용). 예: Lv.3 → 200
     next_level_xp: int | None  # 만렙이면 None
     xp_to_next_level: int | None
-    current_streak: int
+    level_hint: str | None  # 예: "임박 재료로 3번만 더 요리하면 달성!" (만렙이면 None)
+    current_streak: int  # 어제·오늘 활동이 없으면 0 (끊긴 기록)
     best_streak: int
 
 

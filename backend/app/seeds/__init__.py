@@ -58,10 +58,12 @@ def seed_all(db: Session) -> None:
                 )
             )
 
-    if _is_empty(db, Badge):
-        db.add_all(
-            Badge(code=c, name=n, description=d, icon=i, condition=cond, threshold=t, sort_order=idx)
-            for idx, (c, n, d, i, cond, t) in enumerate(BADGES)
-        )
+    # 뱃지는 code 기준으로 맞춘다: 이름·조건을 고쳐도 DB를 지우지 않고 다음 실행 때 반영 (획득 기록 유지)
+    existing = {b.code: b for b in db.scalars(select(Badge))}
+    for idx, (c, n, d, i, cond, t) in enumerate(BADGES):
+        badge = existing.get(c) or Badge(code=c)
+        badge.name, badge.description, badge.icon = n, d, i
+        badge.condition, badge.threshold, badge.sort_order = cond, t, idx
+        db.add(badge)
 
     db.commit()

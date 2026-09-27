@@ -39,6 +39,44 @@ class BadgeCondition(StrEnum):
     PHOTO_REGISTER_COUNT = "PHOTO_REGISTER_COUNT"  # 사진 등록 횟수
 
 
+# 절약 추정 식비: 임박 재료를 유통기한 안에 요리에 쓰면 그 재료값을 '버리지 않고 아낀 돈'으로 본다.
+# 값은 요리 1회에 쓰는 양 기준 대략적인 마트 가격(원). 목록에 없는 재료는 DEFAULT_INGREDIENT_PRICE.
+DEFAULT_INGREDIENT_PRICE = 2300
+INGREDIENT_PRICES: dict[str, int] = {
+    "계란": 1000,  # 2개
+    "두부": 1500,
+    "대파": 1000,
+    "쪽파": 1000,
+    "양파": 700,
+    "감자": 800,
+    "당근": 700,
+    "애호박": 1500,
+    "버섯": 1500,
+    "콩나물": 1200,
+    "고추": 500,
+    "마늘": 500,
+    "우유": 1500,
+    "치즈": 1000,
+    "김치": 1500,
+    "어묵": 1500,
+    "떡": 1500,
+    "밥": 1000,
+    "라면": 1000,
+    "스팸": 3500,
+    "햄": 2500,
+    "소시지": 2500,
+    "참치캔": 2500,
+    "냉동만두": 3000,
+    "돼지고기": 5000,
+    "닭가슴살": 3000,
+    "소고기": 8000,
+}
+
+
+def ingredient_price(name: str) -> int:
+    return INGREDIENT_PRICES.get(name, DEFAULT_INGREDIENT_PRICE)
+
+
 def level_for_xp(xp: int) -> int:
     level = 1
     for lv, required, _ in LEVELS:
@@ -47,8 +85,20 @@ def level_for_xp(xp: int) -> int:
     return level
 
 
-def level_info(level: int) -> tuple[str, int | None]:
-    """(칭호, 다음 레벨 필요 누적 XP). 만렙이면 다음 레벨 XP는 None."""
-    title = next(t for lv, _, t in LEVELS if lv == level)
+def level_info(level: int) -> tuple[str, int, int | None]:
+    """(칭호, 현재 레벨 시작 누적 XP, 다음 레벨 필요 누적 XP). 만렙이면 다음 레벨 XP는 None."""
+    title, min_xp = next((t, req) for lv, req, t in LEVELS if lv == level)
     next_required = next((req for lv, req, _ in LEVELS if lv == level + 1), None)
-    return title, next_required
+    return title, min_xp, next_required
+
+
+# 레벨 힌트('임박 재료로 3번만 더 요리하면 달성!')의 기준: 임박 재료로 요리 1번에 받는 XP
+XP_PER_SAVE_COOK = XP_TABLE[XpAction.COOK_COMPLETE] + XP_TABLE[XpAction.EXPIRY_SAVE_BONUS]
+
+
+def level_hint(xp_to_next_level: int | None) -> str | None:
+    """홈 레벨 카드 문구. 만렙이면 None."""
+    if xp_to_next_level is None:
+        return None
+    times = max(1, -(-xp_to_next_level // XP_PER_SAVE_COOK))  # 올림
+    return f"임박 재료로 {times}번만 더 요리하면 달성!"

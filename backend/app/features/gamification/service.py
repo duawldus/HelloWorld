@@ -4,12 +4,25 @@
    (recipes: 요리 완료, ingredients: 사진 등록, reminders: 집안일 완료)
 """
 
+from datetime import date, timedelta
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.common.config import settings
+from app.common.time import today
 from app.features.gamification.models import Badge, UserBadge, XpLog
-from app.features.gamification.rules import XP_TABLE, BadgeCondition, XpAction, level_for_xp, level_info
+from app.features.gamification.rules import (
+    XP_TABLE,
+    BadgeCondition,
+    XpAction,
+    ingredient_price,
+    level_for_xp,
+    level_hint,
+    level_info,
+)
 from app.features.gamification.schemas import BadgeListResponse, BadgeRead, LevelSummary, StatsResponse
+from app.features.recipes.models import CookLog
 from app.features.users.models import User
 
 
@@ -29,7 +42,8 @@ def award_xp(
     before = user.level
     user.xp = max(0, user.xp + amount)
     user.level = level_for_xp(user.xp)
-    touch_streak(db, user)
+    if amount > 0:
+        touch_streak(user)
     return log, user.level > before
 
 
@@ -46,26 +60,49 @@ def revoke_xp(db: Session, user: User, actions: list[XpAction], ref_id: int) -> 
     return amount
 
 
-def touch_streak(db: Session, user: User) -> None:
-    """오늘 활동 기록 → 연속 기록(streak) 갱신.
+def touch_streak(user: User, on: date | None = None) -> None:
+    """오늘 활동 기록 → 연속 기록(streak) 갱신. XP를 얻는 활동(요리·사진 등록·집안일)마다 award_xp 가 부른다.
 
-    TODO(gamification):
-      - user.last_active_date 가 어제면 current_streak += 1, 오늘이면 유지, 그 외엔 1로 리셋
-      - best_streak 갱신
-      - '연속 기록'의 기준 행동이 무엇인지(요리만? 모든 활동?) 기획 확인 필요
+    마지막 활동이 어제면 +1, 오늘이면 그대로, 그 외엔 1부터 다시. 실행 취소로 XP를 회수해도 기록은 되돌리지 않는다.
     """
+    on = on or today()
+    if user.last_active_date == on:
+        return
+    user.current_streak = user.current_streak + 1 if user.last_active_date == on - timedelta(days=1) else 1
+    user.best_streak = max(user.best_streak, user.current_streak)
+    user.last_active_date = on
+
+
+def current_streak(user: User, on: date | None = None) -> int:
+    """화면에 보여 줄 연속 기록. 어제도 오늘도 활동이 없으면 이미 끊긴 것이라 0."""
+    on = on or today()
+    if user.last_active_date is None or user.last_active_date < on - timedelta(days=1):
+        return 0
+    return user.current_streak
 
 
 def evaluate_badges(db: Session, user: User) -> list[Badge]:
-    """조건을 새로 달성한 뱃지를 지급하고 반환.
+    """조건을 새로 달성한 뱃지를 지급하고 반환. award_xp 뒤, commit 전에 호출한다.
 
-    TODO(gamification): 각 BadgeCondition 별 progress 계산 → threshold 이상이고 미획득이면 UserBadge 생성
+    한 번 받은 뱃지는 실행 취소로 진행도가 내려가도 회수하지 않는다.
     """
-    return []
+    db.flush()  # 세션이 autoflush=False 라서, 방금 추가한 XP 로그가 집계에 잡히도록
+    owned = set(db.scalars(select(UserBadge.badge_id).where(UserBadge.user_id == user.id)))
+    progress: dict[BadgeCondition, int] = {}
+    new_badges = []
+    for badge in db.scalars(select(Badge).order_by(Badge.sort_order, Badge.id)):
+        if badge.id in owned:
+            continue
+        if badge.condition not in progress:
+            progress[badge.condition] = _badge_progress(db, user, badge.condition)
+        if progress[badge.condition] >= badge.threshold:
+            db.add(UserBadge(user_id=user.id, badge_id=badge.id))
+            new_badges.append(badge)
+    return new_badges
 
 
 def _badge_progress(db: Session, user: User, condition: BadgeCondition) -> int:
-    """TODO(gamification): 조건별 현재 수치 계산 (cook_logs, xp_logs 집계 등)"""
+    """조건별 현재 수치 (xp_logs 집계, 연속 기록은 역대 최고)."""
     if condition == BadgeCondition.STREAK_DAYS:
         return user.best_streak
     if condition == BadgeCondition.PHOTO_REGISTER_COUNT:
@@ -83,14 +120,17 @@ def _count_actions(db: Session, user_id: int, action: XpAction) -> int:
 
 
 def get_level_summary(user: User) -> LevelSummary:
-    title, next_xp = level_info(user.level)
+    title, min_xp, next_xp = level_info(user.level)
+    to_next = (next_xp - user.xp) if next_xp is not None else None
     return LevelSummary(
         level=user.level,
         title=title,
         xp=user.xp,
+        level_min_xp=min_xp,
         next_level_xp=next_xp,
-        xp_to_next_level=(next_xp - user.xp) if next_xp is not None else None,
-        current_streak=user.current_streak,
+        xp_to_next_level=to_next,
+        level_hint=level_hint(to_next),
+        current_streak=current_streak(user),
         best_streak=user.best_streak,
     )
 
@@ -100,10 +140,26 @@ def get_stats(db: Session, user: User) -> StatsResponse:
     return StatsResponse(
         **get_level_summary(user).model_dump(),
         saved_count=saved_count,
-        # TODO(gamification): 재료별 평균 단가 기반으로 계산. 지금은 1회당 2,300원 가정
-        saved_money_estimate=saved_count * 2300,
+        saved_money_estimate=_saved_money(db, user),
         cook_count=_count_actions(db, user.id, XpAction.COOK_COMPLETE),
     )
+
+
+def _saved_money(db: Session, user: User) -> int:
+    """절약 추정 식비: '유통기한 내 소진 보너스'를 받은 요리에서 임박 재료(D-0~D-3)의 재료값 합계.
+
+    보너스 XP 로그의 ref_id 가 요리 기록(cook_logs) id 라서, 그 요리의 소진 스냅샷을 본다.
+    실행 취소한 요리는 보너스 로그가 지워지므로 자동으로 빠진다.
+    """
+    cook_ids = select(XpLog.ref_id).where(XpLog.user_id == user.id, XpLog.action == XpAction.EXPIRY_SAVE_BONUS)
+    total = 0
+    for cook in db.scalars(select(CookLog).where(CookLog.id.in_(cook_ids))):
+        cooked_on = cook.created_at.date()
+        for snap in cook.consumed_snapshot:
+            left = (date.fromisoformat(snap["expires_on"]) - cooked_on).days
+            if 0 <= left <= settings.IMMINENT_DAYS:
+                total += ingredient_price(snap["name"])
+    return total
 
 
 def list_badges(db: Session, user: User) -> BadgeListResponse:

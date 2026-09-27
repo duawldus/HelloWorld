@@ -599,7 +599,7 @@ RECIPES = [
 
 # (코드, 이름, 설명, 아이콘, 조건, 목표치)
 BADGES = [
-    ("FRIDGE_CLEANER", "냉장고 클린러", "유통기한 내 재료 소진 10회", "🧹", BadgeCondition.SAVED_BEFORE_EXPIRY, 10),
+    ("FRIDGE_CLEANER", "냉장고 클리너", "유통기한 내 재료 소진 10회", "🧹", BadgeCondition.SAVED_BEFORE_EXPIRY, 10),
     ("HOME_COOK_MASTER", "집밥 마스터", "요리 완료 10회", "🍳", BadgeCondition.COOK_COUNT, 10),
     ("STREAK_7", "7일 연속 기록", "7일 연속 관리", "🔥", BadgeCondition.STREAK_DAYS, 7),
     ("STREAK_30", "30일 연속", "30일 연속 관리", "🏆", BadgeCondition.STREAK_DAYS, 30),
