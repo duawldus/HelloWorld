@@ -25,8 +25,13 @@ export const deleteIngredient = (...args) => impl.deleteIngredient(...args) // �
 export const CAN_CONSUME = impl.CAN_CONSUME // 서버 모드는 백엔드 소진 API가 생기기 전까지 false
 export const deductIngredients = (...args) => impl.deductIngredients(...args)
 
+// 레시피 (추천 · 상세)
+export const getRecipeRecommendations = (...args) => impl.getRecipeRecommendations(...args)
+export const getRecipe = (...args) => impl.getRecipe(...args)
+
 // XP 를 얻는 행동
 export const completeCooking = (...args) => impl.completeCooking(...args)
+export const undoCooking = (...args) => impl.undoCooking(...args) // 요리 완료 실행 취소
 export const completeChore = (...args) => impl.completeChore(...args)
 
 // 성과 (레벨·XP·연속 기록, 뱃지, XP 기록)
@@ -85,6 +90,7 @@ export async function resetAllData() {
 export {
   STORAGE_TYPES,
   storageLabel,
+  difficultyLabel,
   matchesName,
   todayString,
   addDays,

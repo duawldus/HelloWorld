@@ -18,6 +18,7 @@ const KEYS = {
   progress: 'bangguseok.progress',
   meta: 'bangguseok.meta', // { version, baseDate }
   seasonings: 'bangguseok.seasonings', // { onboarded, owned_ids } — 냉장고 재료와 따로 저장
+  cookLogs: 'bangguseok.cookLogs', // 요리 완료 기록 (실행 취소용)
 }
 
 // 처음 설치 상태: 온보딩 전, 보유 양념 없음
@@ -53,11 +54,23 @@ export async function saveSeasoningState(state) {
   await write(KEYS.seasonings, state)
 }
 
+// 요리 완료 기록 (실행 취소용, 최신이 앞). 백엔드 CookLog 와 같은 역할
+// [{ id, recipe_id, recipe_title, xp_awarded, counted_actions, consumed_ingredient_ids, undone_at }]
+export async function loadCookLogs() {
+  await ensurePrepared()
+  return readOrCreate(KEYS.cookLogs, () => [])
+}
+
+export async function saveCookLogs(cookLogs) {
+  await write(KEYS.cookLogs, cookLogs)
+}
+
 // 저장된 데이터를 지우고 더미 데이터로 다시 시작 (테스트용). 온보딩도 다시 뜹니다.
 export async function resetAllData() {
   await write(KEYS.ingredients, createDummyIngredients())
   await write(KEYS.progress, createDummyProgress())
   await write(KEYS.seasonings, initialSeasoningState())
+  await write(KEYS.cookLogs, [])
   await write(KEYS.meta, { version: DATA_VERSION, baseDate: todayString() })
 }
 

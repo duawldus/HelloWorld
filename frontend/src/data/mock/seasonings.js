@@ -3,7 +3,7 @@
 import { loadSeasoningState, saveSeasoningState } from './storage.js'
 
 // [이름, 아이콘] — 온보딩 순서대로. id 는 1부터
-const SEASONINGS = [
+export const SEASONINGS = [
   ['간장', '🫙'],
   ['식용유', '🛢️'],
   ['소금', '🧂'],

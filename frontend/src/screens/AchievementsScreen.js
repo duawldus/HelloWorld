@@ -263,7 +263,7 @@ function XpSection({ section }) {
               </Text>
             </View>
             <View style={styles.xpPill}>
-              <Text style={styles.xpPillText}>+{row.amount} XP</Text>
+              <Text style={styles.xpPillText}>{row.amount >= 0 ? `+${row.amount}` : `−${-row.amount}`} XP</Text>
             </View>
           </View>
         ))

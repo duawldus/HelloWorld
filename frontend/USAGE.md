@@ -6,6 +6,8 @@
 import { getIngredients, deductIngredients, completeCooking, completeChore } from '../data'
 ```
 
+> 레시피 추천·상세는 `getRecipeRecommendations`, `getRecipe`로 불러와요 (아래 3-1).
+
 > - 모든 함수는 `async`예요. 부를 때 앞에 `await`를 붙여 주세요.
 > - 실패하면 에러가 나요(서버가 꺼져 있을 때 등). `try { ... } catch (error) { ... }`로 감싸고 `error.message`를 화면에 보여 주세요.
 > - **돌려받는 값의 모양은 백엔드 API 응답과 똑같아요.** 이름이 `expires_on`, `d_day`처럼 밑줄(`_`)로 되어 있어요. 백엔드 Swagger(`/docs`)에서 본 모양 그대로 쓰면 돼요.
@@ -88,15 +90,47 @@ const result = await deductIngredients([
 ```js
 const result = await completeCooking({
   recipeId: 1,                // 백엔드 레시피 id
-  recipeName: '김치찌개',       // XP 기록에 남는 이름 (가짜 모드용)
-  ingredientIds: [tofu.id, egg.id], // 소진할 내 재료 id (서버 모드는 생략하면 레시피에 맞는 재료 전부)
+  recipeName: '김치찌개',       // XP 기록에 남는 이름
+  ingredientIds: [tofu.id, egg.id], // 소진할 내 재료 id. 생략하면 레시피에 맞는 내 재료 전부 (두 모드 모두)
 })
-result.consumed // [{ ingredient_id, name, before_expiry }]
-result.xp       // 아래 'XP 결과' 참고
+result.cook_log_id // 실행 취소할 때 씀
+result.consumed    // [{ ingredient_id, name, before_expiry }]
+result.xp          // 아래 'XP 결과' 참고
+
+// 실수로 눌렀을 때: 소진한 재료를 되돌리고 받은 XP를 회수
+await undoCooking(result.cook_log_id) // → { cook_log_id, restored_ingredient_ids, xp_revoked }
 ```
 
 - 기본 **+10 XP**, 쓴 재료 중 임박(D-3 이하, 안 지난) 재료가 있으면 **+10 보너스** ("유통기한 내 소진 보너스")
-- ⚠️ 백엔드의 요리 완료 API는 아직 준비 중이라, 서버 모드에서는 "아직 서버에 준비되지 않은 기능이에요 (501)" 에러가 나요. 가짜 모드에서는 동작해요.
+- 레시피 상세 화면(`RecipeDetailScreen.js`)이 이미 이렇게 쓰고 있어요.
+- ⚠️ 백엔드의 요리 완료·실행 취소 API는 아직 준비 중이라, 서버 모드에서는 "아직 서버에 준비되지 않은 기능이에요 (501)" 에러가 나요. 가짜 모드에서는 동작해요.
+
+## 3-1. 레시피 추천 · 상세 (레시피 화면)
+
+모양은 백엔드 `recipes/schemas.py`의 `RecommendResponse`, `RecipeDetail`과 같아요.
+
+```js
+import { getRecipeRecommendations, getRecipe, difficultyLabel } from '../data'
+
+// 추천: 내 냉장고 재료 + 보유 양념 기준. 옵션은 백엔드 쿼리 이름 그대로 (모두 생략 가능)
+const rec = await getRecipeRecommendations({ imminent_first: true, max_minutes: 15, servings: 1 })
+rec.basis_ingredient_count // '내 냉장고 재료 8개를 기준으로 추천했어요'
+rec.ready  // 바로 만들 수 있어요 (부족 0개)
+rec.almost // 1~2개만 더 있으면 (3개 이상 부족하면 빠짐)
+// 카드 하나: { id, title, image_url, cook_minutes, difficulty: 'EASY', servings,
+//             uses_imminent, imminent_count, missing_count, tags: [{ name, owned, imminent }] }
+difficultyLabel('EASY') // '쉬움'
+
+// 상세: 재료 체크리스트 + 조리 순서
+const recipe = await getRecipe(2)
+recipe.checklist // [{ name: '대파', amount: '약간', owned: false, is_seasoning: false, is_optional: false,
+                 //    substitutes: ['쪽파', '양파'], owned_substitutes: ['양파'] }, ...]
+recipe.steps     // [{ step_no: 1, description: '두부를 1cm 두께로 썰고...' }, ...]
+```
+
+- 냉장고가 비어 있으면 `'식재료를 1개 이상 등록해 주세요'` 에러가 나요.
+- 가짜 모드는 백엔드 seeds와 같은 레시피 7개로 추천해요. 재료 이름이 조금 달라도 포함되면 같은 재료로 봐요 (`돼지고기` ↔ `돼지고기 앞다리살`). 백엔드는 아직 이름이 똑같아야 매칭돼요.
+- ⚠️ 백엔드 추천 API(`/recipes/recommendations`)는 아직 준비 중(501)이에요. 상세(`/recipes/{id}`)는 동작해요.
 
 ## 4. 집안일 완료 XP (생활알림 화면)
 

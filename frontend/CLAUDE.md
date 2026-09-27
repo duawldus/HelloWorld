@@ -24,6 +24,7 @@
   - `achievements.js`: 성과 · 뱃지 (홈에서 `router.push('/achievements')`, 탭바 없음)
   - `onboarding.js`: 온보딩 · 기본 양념 설정 (처음 켰을 때만. `(tabs)/_layout.js`가 온보딩 전이면 여기로 보냄, `?mode=edit`는 수정 모드)
   - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
+  - `recipe/[id].js`: 레시피 상세 (탭바 없음). 레시피 추천은 `(tabs)/recipe.js`
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
 - `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `BottomSheet.js` 아래에서 올라오는 창, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
@@ -35,6 +36,7 @@
   - `mock/`: 가짜 모드. 백엔드와 똑같이 동작하도록 흉내 냄
     - `rules.js`(XP·레벨·뱃지·임박·인식 기준), `presets.js`(재료 프리셋): 백엔드 `gamification/rules.py`, `seeds/data.py`와 같은 값으로 유지한다. 가짜 모드에서만 쓴다
     - `seasonings.js`: 기본 양념 12종(백엔드 seeds와 같은 값)과 보유 양념·온보딩 완료 여부
+    - `recipes.js`: 레시피 7개(백엔드 seeds와 같은 값)와 추천·상세 계산. 요리 완료 기록(실행 취소용)은 `storage.js`의 `cookLogs`
     - `dummyData.js`: 처음 시작 데이터. 바꾸면 `mock/storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
     - `KEEP_DATES_FROM_TODAY = true`(`mock/storage.js`): 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용)
 

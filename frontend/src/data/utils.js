@@ -12,6 +12,14 @@ export function storageLabel(storage) {
   return STORAGE_LABELS[storage] ?? storage
 }
 
+// ----- 레시피 난이도 -----
+const DIFFICULTY_LABELS = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' }
+
+// 'EASY' → '쉬움'
+export function difficultyLabel(difficulty) {
+  return DIFFICULTY_LABELS[difficulty] ?? difficulty
+}
+
 // ----- 날짜 -----
 export function todayString() {
   return toDateString(new Date())

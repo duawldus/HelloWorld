@@ -15,7 +15,8 @@ export {
 export const CAN_CONSUME = true // '다 먹었어요'(소진)
 export const STREAK_READY = true // 연속 기록
 export const BADGES_READY = true // 뱃지 획득
-export { deductIngredients, completeCooking, completeChore } from './actions.js'
+export { deductIngredients, completeCooking, undoCooking, completeChore } from './actions.js'
+export { getRecipeRecommendations, getRecipe } from './recipes.js'
 export { getStats, getBadges, getXpLogs } from './gamification.js'
 export { recognizeIngredients } from './vision.js'
 export { isOnboarded, getSeasonings, saveSeasonings } from './seasonings.js'

@@ -63,6 +63,21 @@ export async function deductIngredients(usedList) {
   return results
 }
 
+// ----- 레시피 -----
+
+// GET /recipes/recommendations?imminent_first=&max_minutes=&servings=&limit=
+// → { basis_ingredient_count, ready(바로 가능), almost(1~2개 부족) }  (백엔드 추천 알고리즘 준비 중 → 501)
+export function getRecipeRecommendations({ imminent_first = true, max_minutes, servings, limit } = {}) {
+  return request('/recipes/recommendations', {
+    query: { imminent_first, max_minutes, servings, limit },
+  })
+}
+
+// GET /recipes/{id} → 재료 체크리스트(보유/부족/대체재) + 조리 순서
+export function getRecipe(id) {
+  return request(`/recipes/${id}`)
+}
+
 // ----- XP 행동 -----
 
 // POST /recipes/{recipeId}/complete → { cook_log_id, consumed, xp }
@@ -72,6 +87,12 @@ export function completeCooking({ recipeId, ingredientIds }) {
     method: 'POST',
     body: ingredientIds ? { ingredient_ids: ingredientIds } : {},
   })
+}
+
+// POST /recipes/cook-logs/{cookLogId}/undo → { cook_log_id, restored_ingredient_ids, xp_revoked }
+// 요리 완료 실행 취소 (백엔드 아직 준비 중 → 501)
+export function undoCooking(cookLogId) {
+  return request(`/recipes/cook-logs/${cookLogId}/undo`, { method: 'POST' })
 }
 
 // POST /reminders/{reminderId}/complete → { reminder, xp }

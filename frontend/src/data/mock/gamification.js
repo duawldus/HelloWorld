@@ -83,6 +83,27 @@ export async function awardXp(entries) {
   }
 }
 
+// XP 회수 (요리 완료 실행 취소). 백엔드처럼 음수 XP 기록(COOK_UNDO)을 남기고,
+// 그때 늘렸던 행동 횟수(countedActions)를 되돌립니다. 이미 딴 뱃지·연속 기록은 그대로 둡니다.
+export async function revokeXp({ amount, countedActions, description }) {
+  const before = await loadProgress()
+  const counts = { ...before.counts }
+  for (const action of countedActions) counts[action] = Math.max(0, (counts[action] ?? 0) - 1)
+  const log = {
+    id: before.logs.reduce((max, l) => Math.max(max, l.id), 0) + 1,
+    action: 'COOK_UNDO',
+    amount: -amount,
+    description,
+    created_at: new Date().toISOString(),
+  }
+  await saveProgress({
+    ...before,
+    xp: Math.max(0, before.xp - amount),
+    counts,
+    logs: [log, ...before.logs].slice(0, MAX_LOGS),
+  })
+}
+
 function levelFor(xp) {
   return LEVELS.filter(([, required]) => xp >= required).at(-1)[0]
 }

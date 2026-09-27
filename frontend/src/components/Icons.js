@@ -188,3 +188,29 @@ export function ChevronDownIcon(props) {
     </Icon>
   )
 }
+
+export function RefreshIcon(props) {
+  return (
+    <Icon size={18} color={colors.text} {...props}>
+      <Path d="M20 12a8 8 0 1 1-2.6-5.9" />
+      <Path d="M20 4v5h-5" />
+    </Icon>
+  )
+}
+
+export function ClockIcon(props) {
+  return (
+    <Icon size={14} {...props}>
+      <Circle cx="12" cy="12" r="8.5" />
+      <Path d="M12 7.5V12l3 2" />
+    </Icon>
+  )
+}
+
+export function FlameIcon(props) {
+  return (
+    <Icon size={20} color={colors.textOnPrimary} {...props}>
+      <Path d="M12 21a6.5 6.5 0 0 1-6.5-6.5c0-2.4 1.3-4.3 2.8-5.6.2 1.6 1 2.8 2.2 3.3-.4-3 .9-5.9 3.5-8.2.4 2.6 1.8 4.5 3.3 6A7 7 0 0 1 18.5 14.5 6.5 6.5 0 0 1 12 21z" />
+    </Icon>
+  )
+}
