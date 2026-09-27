@@ -12,6 +12,7 @@ import { LEVELS } from './mock/rules.js'
 const impl = DATA_MODE === 'server' ? server : mock
 
 export const IS_SERVER_MODE = DATA_MODE === 'server'
+export { DEV_SKIP_SPLASH } from './config.js' // 스플래시 1.5초 기다리기 끄기 (개발용)
 
 // 재료
 export const getPresets = (...args) => impl.getPresets(...args)
@@ -64,25 +65,31 @@ export const getOwnedSeasonings = async () =>
     .map(({ id, name, icon }) => ({ id, name, icon }))
 
 // 온보딩 완료 여부는 앱을 켠 동안 한 번만 확인해서 기억해 둡니다.
-let onboardedCache = null
+// 스플래시와 탭 화면이 동시에 물어도 서버 요청은 한 번만 갑니다. (실패하면 다음에 다시 확인)
+let onboardedPromise = null
 
-export async function isOnboarded() {
-  if (onboardedCache === null) {
-    onboardedCache = DEV_ALWAYS_SHOW_ONBOARDING ? false : await impl.isOnboarded()
+export function isOnboarded() {
+  if (!onboardedPromise) {
+    onboardedPromise = DEV_ALWAYS_SHOW_ONBOARDING
+      ? Promise.resolve(false)
+      : impl.isOnboarded().catch((error) => {
+          onboardedPromise = null
+          throw error
+        })
   }
-  return onboardedCache
+  return onboardedPromise
 }
 
 // 보유 양념 저장 (전체 교체) + 온보딩 완료 처리
 export async function saveSeasonings(seasoningIds) {
   const result = await impl.saveSeasonings(seasoningIds)
-  onboardedCache = true
+  onboardedPromise = Promise.resolve(true)
   return result
 }
 
 // 테스트용: 가짜 모드는 더미 데이터로 초기화(온보딩도 다시), 서버 모드는 아무것도 지우지 않음. 기기 번호는 두 모드 모두 그대로
 export async function resetAllData() {
-  onboardedCache = null
+  onboardedPromise = null
   await impl.resetAllData()
 }
 

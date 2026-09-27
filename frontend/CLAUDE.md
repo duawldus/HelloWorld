@@ -18,7 +18,7 @@
 
 ## 구조
 - `src/app/`: 화면 경로 (expo-router). 파일 하나가 화면 하나이고, `_layout.js`는 화면 틀
-  - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀)
+  - `_layout.js`: 앱 전체 틀 (웹에서는 가운데 휴대폰 모양 틀). 앱을 켜면 스플래시를 덮고 그동안 온보딩 여부를 불러옴
   - `(tabs)/_layout.js`: 하단 탭바 (홈/냉장고/레시피/생활알림)
   - `(tabs)/`: 탭바가 보이는 화면 (`index.js` 홈, `fridge.js` 냉장고, `recipe.js`, `alert.js`)
   - `achievements.js`: 성과 · 뱃지 (홈에서 `router.push('/achievements')`, 탭바 없음)
@@ -26,7 +26,7 @@
   - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
   - `recipe/[id].js`: 레시피 상세 (탭바 없음). 레시피 추천은 `(tabs)/recipe.js`
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
-- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `BottomSheet.js` 아래에서 올라오는 창, `Icons.js` 아이콘)
+- `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `BottomSheet.js` 아래에서 올라오는 창, `SplashOverlay.js` 앱 시작 스플래시, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
 - `src/data/`: 앱 데이터
   - `config.js`: 모드 스위치(`DATA_MODE`)와 백엔드 주소(`API_BASE_URL`, 폰은 PC IP)
@@ -50,6 +50,7 @@
 - `npx expo start --web`: 웹 브라우저로 바로 열기
 - `npx expo install <패키지>`: 패키지 설치는 npm install 대신 항상 이것으로 (SDK에 맞는 버전 설치)
 - `npx expo-doctor`: 설정·패키지 버전 문제 검사
+- 스플래시 1.5초 건너뛰기(개발용): `src/data/config.js`의 `DEV_SKIP_SPLASH = true` (커밋 전 `false`로). 실제 앱 빌드용 스플래시 배경은 `app.json`의 `expo-splash-screen` 플러그인 `backgroundColor`(메인 색과 같게)
 - 온보딩 다시 보기(개발용): `src/data/config.js`의 `DEV_ALWAYS_SHOW_ONBOARDING = true` (커밋 전 `false`로), 또는 웹에서 `http://localhost:8081/onboarding` 주소로 이동
 
 ## Expo 주의

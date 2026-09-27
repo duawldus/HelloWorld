@@ -12,3 +12,7 @@ export const API_BASE_URL = 'http://localhost:8000'
 
 // 개발용: true 면 앱을 켤 때마다 온보딩(기본 양념 설정)이 뜹니다. 커밋할 때는 false 로!
 export const DEV_ALWAYS_SHOW_ONBOARDING = false
+
+// 개발용: true 면 스플래시(파란 '방구석 매니저' 화면)를 1.5초 기다리지 않고 데이터만 불러오면 바로 넘어갑니다.
+// 커밋할 때는 false 로!
+export const DEV_SKIP_SPLASH = false
