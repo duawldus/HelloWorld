@@ -1,0 +1,8 @@
+# 버전 고정: 팀원 모두 같은 버전을 쓰도록 (올릴 때는 테스트 통과 확인 후 여기 숫자를 바꾼다)
+fastapi[standard]==0.141.1
+sqlalchemy==2.1.0
+pydantic-settings==2.15.0
+apscheduler==3.11.3
+alembic==1.20.0
+httpx==0.28.1
+google-genai==2.25.0
