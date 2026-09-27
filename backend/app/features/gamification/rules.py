@@ -11,8 +11,7 @@ class XpAction(StrEnum):
     CHORE_COMPLETE = "CHORE_COMPLETE"  # 생활 알림(집안일) 완료
 
 
-# 와이어프레임 기준: 요리+임박소진 +20, 사진 등록 +15, 집안일 +5
-# TODO(gamification): 기획 확정 시 수치 조정
+# 확정(2026-09-27, 와이어프레임 기준): 요리 완료 +10, 임박 재료 소진 보너스 +10, 사진 등록 +15, 집안일 +5
 XP_TABLE: dict[XpAction, int] = {
     XpAction.COOK_COMPLETE: 10,
     XpAction.EXPIRY_SAVE_BONUS: 10,
@@ -21,7 +20,7 @@ XP_TABLE: dict[XpAction, int] = {
     XpAction.CHORE_COMPLETE: 5,
 }
 
-# (레벨, 필요 누적 XP, 칭호) — 와이어프레임: Lv.3 240XP, 다음 레벨까지 150 → Lv.4 = 390
+# (레벨, 필요 누적 XP, 칭호) — 확정(2026-09-27). 와이어프레임: Lv.3 240XP, 다음 레벨까지 150 → Lv.4 = 390
 LEVELS: list[tuple[int, int, str]] = [
     (1, 0, "자취 새내기"),
     (2, 100, "냉장고 탐험가"),
