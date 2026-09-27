@@ -28,4 +28,5 @@ class NotificationRead(ORMModel):
 class PushMessage(BaseModel):
     title: str
     body: str
-    deeplink: str  # 예: "bangguseok://recipes", "bangguseok://reminders"
+    deeplink: str  # 예: "bangguseok://recipes", "bangguseok://reminders" (앱 messages.js 의 DEEPLINKS 와 맞춤)
+    channel: str  # Android 알림 채널 id — 앱이 만든 "expiry" / "reminders"

@@ -33,7 +33,7 @@
 | DB | **SQLite** (개발 단계. 추후 PostgreSQL + Alembic 전환 예정 — `DATABASE_URL`만 바꾸면 됨) |
 | LLM | **Gemini API** (`google-genai` SDK, 무료 등급) — `app/common/llm`을 통해서만 호출 |
 | 사용자 식별 | **로그인 없음** — 기기 고유 ID를 `X-Device-Id` 헤더로 전송 |
-| 푸시 알림 | Expo Push (발송 로직은 TODO) |
+| 푸시 알림 | Expo Push (`PUSH_ENABLED=true`일 때 실제 발송, 아니면 로그만) |
 | 스케줄러 | APScheduler |
 | Lint / Test | Ruff / pytest |
 
@@ -139,7 +139,7 @@ backend/
 | `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절·요리 완료·실행 취소 완료 → **`ingredients` 복구 함수 합치기 대기**(실행 취소), AI 프롬프트 튜닝 |
 | `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | 같은 회차 중복 완료 방지 |
 | `gamification` | 8 성과 · 뱃지 | 우시연 | ✅ | |
-| `notifications` | 9 푸시 알림 | 우시연 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
+| `notifications` | 9 푸시 알림 | 우시연 | ✅ | 실기기에서 `PUSH_ENABLED=true`로 발송 확인 |
 
 - 아직 구현 안 된 기능은 `raise NotImplementedError` → API가 **501**을 돌려줍니다. 요청/응답 스키마는 이미 정의돼 있어서 **프론트는 Swagger 보고 먼저 붙일 수 있어요.**
 - 코드에서 할 일 찾기: `grep -rn "TODO(" app/` → `TODO(recipes)`처럼 기능 이름이 붙어 있습니다.

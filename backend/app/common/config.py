@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # 푸시 알림 스케줄러
     SCHEDULER_ENABLED: bool = False
     EXPIRY_ALERT_HOUR: int = 9  # 유통기한 알림 발송 시각 (매일 오전 9시)
+    PUSH_ENABLED: bool = False  # True면 Expo Push 로 실제 발송, False면 로그만 남긴다
+    EXPO_ACCESS_TOKEN: str = ""  # Expo 대시보드에서 'Enhanced push security'를 켠 경우에만 필요
 
 
 settings = Settings()

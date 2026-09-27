@@ -201,6 +201,66 @@ export async function deductIngredients(usedList) {
 
 ---
 
+## 4-2. 푸시 알림 발송이 동작합니다 ✅ (Android만)
+
+서버가 **유통기한 알림**(매일 오전 9시)과 **생활 알림**(설정한 요일·시각, N일 전)을 보냅니다. 같은 날 같은 알림은 한 번만 갑니다.
+
+> **이번에는 Android만 지원합니다.** (iOS는 유료 Apple 개발자 계정이 필요해서 제외)
+> 서버는 Firebase 없이 Expo 푸시 서버로만 보내고, Expo가 Firebase(FCM)를 거쳐 폰에 전달합니다.
+> 그래서 **앱 쪽에만** Firebase 설정이 필요합니다.
+
+### 준비 (한 번만)
+1. **EAS 프로젝트 연결** — 푸시 토큰 발급에 프로젝트 ID가 필요해요.
+   ```bash
+   npm i -g eas-cli
+   eas login
+   eas init            # app.json 에 extra.eas.projectId 가 생겨요
+   eas build:configure # eas.json 생성
+   ```
+2. **Android 패키지 이름** — `app.json`의 `android`에 `"package": "com.bangguseok.app"`(예시)을 넣어 주세요. 한번 정하면 바꾸기 어려워요.
+3. **Firebase 프로젝트** ([console.firebase.google.com](https://console.firebase.google.com))
+   - 프로젝트 만들기 → Android 앱 추가 (위 패키지 이름 그대로)
+   - `google-services.json` 받아서 `frontend/`에 두고, `app.json`의 `android`에 `"googleServicesFile": "./google-services.json"` 추가
+4. **FCM 키를 Expo에 등록**
+   - Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → **새 비공개 키 생성** (JSON 파일)
+   - `eas credentials` → Android → Google Service Account → **FCM V1** 키로 위 JSON 업로드
+   - ⚠️ 이 JSON은 비밀키예요. **절대 커밋하지 마세요** (`.gitignore`에 추가)
+5. **개발 빌드** — Android는 Expo Go로 푸시를 받을 수 없어요. 개발 빌드 APK를 폰에 설치해서 테스트해 주세요.
+   ```bash
+   npx expo install expo-dev-client
+   eas build --profile development --platform android
+   npx expo start --dev-client
+   ```
+   에뮬레이터 말고 **실제 폰**으로 테스트해 주세요.
+
+### 코드는 이미 준비돼 있어요 → 스위치만 바꿔 주세요
+`src/notifications`에 토큰 등록 · 채널 · 알림 탭 이동이 이미 다 있어서, 위 준비가 끝나면 `src/data/config.js`만 바꾸면 됩니다.
+```js
+export const DATA_MODE = 'server'
+export const PUSH_SOURCE = 'server' // 앱 예약 알림은 지우고 서버 푸시만 받음 (두 번 오지 않게)
+```
+
+서버가 보내는 값은 앱 코드와 맞춰 두었습니다.
+
+| 알림 | 예시 | `data.deeplink` → 화면 | `channelId` |
+| --- | --- | --- | --- |
+| 유통기한 | "두부 유통기한이 내일까지예요" / "냉장고에 두부 1모 있어요. 두부 계란부침은 어때요?" | `bangguseok://recipes` → `/recipe` | `expiry` |
+| 생활 | "빨래하기" / "지금 빨래하기 시간이에요" | `bangguseok://reminders` → `/alert` | `reminders` |
+
+- 딥링크는 `messages.js`의 `DEEPLINKS`, 채널은 `index.js`의 `CHANNELS`와 같은 값이에요. 한쪽을 바꾸면 백엔드 `notifications/jobs.py`도 같이 바꿔야 해요.
+- 푸시를 못 받았어도 **`GET /notifications`** 에 이력이 남습니다 (기기 토큰이 없어도 기록됨).
+
+### 확인 순서
+1. 앱에서 받은 토큰(`ExponentPushToken[...]`)으로 [expo.dev/notifications](https://expo.dev/notifications) 에서 테스트 발송 → 폰에 뜨면 앱 설정 완료
+2. 서버 `.env`에 `PUSH_ENABLED=true`, `SCHEDULER_ENABLED=true` → 생활 알림을 1~2분 뒤로 만들어서 오는지 확인
+3. 폰이 서버에 접속하려면 같은 Wi-Fi에서 서버를 `uvicorn app.main:app --host 0.0.0.0` 으로 띄우고, 앱의 서버 주소를 PC의 IP(예: `http://192.168.0.10:8000`)로 맞춰 주세요.
+
+### 참고
+- 서버 `.env`의 `PUSH_ENABLED=false`(기본값)면 실제로 보내지 않고 서버 로그에만 찍힙니다.
+- 앱을 지워서 Expo가 "등록되지 않은 기기"라고 알려 주면 서버가 그 토큰을 자동으로 지웁니다.
+
+---
+
 ## 5. 백엔드를 새로 받으신 뒤 해 주실 것
 
 테이블 구조가 바뀌어서 **로컬 DB를 한 번 지우고** 서버를 다시 켜 주세요.
