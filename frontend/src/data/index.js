@@ -80,7 +80,7 @@ export async function saveSeasonings(seasoningIds) {
   return result
 }
 
-// 테스트용: 가짜 모드는 더미 데이터로 초기화(온보딩도 다시), 서버 모드는 로그인 토큰만 지움
+// 테스트용: 가짜 모드는 더미 데이터로 초기화(온보딩도 다시), 서버 모드는 아무것도 지우지 않음. 기기 번호는 두 모드 모두 그대로
 export async function resetAllData() {
   onboardedCache = null
   await impl.resetAllData()

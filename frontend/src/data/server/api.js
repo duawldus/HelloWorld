@@ -1,6 +1,8 @@
 // ⭐ 서버 모드의 백엔드 통신은 이 파일에서만 합니다.
-// - 처음 요청할 때 게스트 로그인(POST /auth/guest)으로 토큰을 받아 저장하고, 모든 요청에 붙입니다.
-// - 토큰이 만료되면(401) 한 번 다시 로그인해서 재시도합니다.
+// - 로그인은 없습니다. 모든 요청에 기기 번호를 `X-Device-Id` 헤더로 붙이면,
+//   백엔드가 처음 보는 번호는 사용자를 자동으로 만들고 이후에는 같은 사용자로 봅니다.
+//   (backend 브랜치 backend/FRONTEND_REQUESTS.md 1번)
+// - 기기 번호는 처음 한 번 만들어 폰(브라우저)에 저장해 두고 계속 씁니다. 데이터를 초기화해도 지우지 않습니다.
 // - 실패하면 백엔드의 { code, message } 를 담은 에러를 던집니다. 화면에서는 error.message 를 보여 주면 됩니다.
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API_BASE_URL } from '../config.js'
@@ -8,22 +10,14 @@ import { API_BASE_URL } from '../config.js'
 const API_PREFIX = '/api/v1'
 
 const KEYS = {
-  deviceId: 'bangguseok.server.deviceId', // 앱 설치마다 한 번 만드는 기기 ID
-  token: 'bangguseok.server.token',
+  deviceId: 'bangguseok.server.deviceId', // 앱 설치마다 한 번 만드는 기기 번호 (8~128자)
 }
-
-let token = null
 
 // 예) request('/ingredients')
 //     request('/ingredients', { method: 'POST', query: { source: 'PRESET' }, body: { name: '두부' } })
 //     request('/vision/recognize', { method: 'POST', form: formData })
 export async function request(path, { method = 'GET', query, body, form } = {}) {
-  const response = await send(path, { method, query, body, form, token: await getToken() })
-  if (response.status !== 401) return parse(response)
-
-  // 토큰이 만료됐거나 서버 DB가 초기화된 경우: 다시 로그인 후 한 번만 재시도
-  await clearToken()
-  return parse(await send(path, { method, query, body, form, token: await getToken() }))
+  return parse(await send(path, { method, query, body, form, deviceId: await getDeviceId() }))
 }
 
 // 사진 파일을 multipart 로 보낼 때 쓰는 FormData 만들기 (expo-image-picker 결과 하나)
@@ -43,30 +37,24 @@ export async function imageFormData(fieldName, photo) {
   return form
 }
 
-// 서버 모드에서 로그인 정보를 지웁니다. (다음 요청 때 같은 기기 ID로 다시 로그인)
-export async function clearToken() {
-  token = null
-  await AsyncStorage.removeItem(KEYS.token).catch(() => {})
-}
-
 // ----- 아래는 이 파일 안에서만 쓰는 함수 -----
 
-async function getToken() {
-  if (token) return token
-  token = await AsyncStorage.getItem(KEYS.token).catch(() => null)
-  if (token) return token
+// 기기 번호: 저장된 게 있으면 그대로, 없으면 처음 한 번 만들어 저장합니다.
+// 앱을 켤 때 여러 요청이 동시에 불러도 번호가 하나만 만들어지도록 한 번만 실행합니다.
+// (동시에 따로 만들면 서버에 사용자가 둘 생길 수 있음)
+let deviceIdPromise = null
 
-  const response = await send('/auth/guest', {
-    method: 'POST',
-    body: { device_id: await getDeviceId() },
-  })
-  const data = await parse(response)
-  token = data.access_token
-  await AsyncStorage.setItem(KEYS.token, token).catch(() => {})
-  return token
+function getDeviceId() {
+  if (!deviceIdPromise) {
+    deviceIdPromise = loadOrCreateDeviceId().catch((error) => {
+      deviceIdPromise = null // 실패하면 다음 요청 때 다시 시도
+      throw error
+    })
+  }
+  return deviceIdPromise
 }
 
-async function getDeviceId() {
+async function loadOrCreateDeviceId() {
   let deviceId = await AsyncStorage.getItem(KEYS.deviceId).catch(() => null)
   if (!deviceId) {
     deviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -75,15 +63,14 @@ async function getDeviceId() {
   return deviceId
 }
 
-async function send(path, { method, query, body, form, token: accessToken }) {
+async function send(path, { method, query, body, form, deviceId }) {
   const search = query
     ? '?' +
       new URLSearchParams(
         Object.entries(query).filter(([, value]) => value !== undefined && value !== null),
       )
     : ''
-  const headers = {}
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+  const headers = { 'X-Device-Id': deviceId }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
 
   try {

@@ -1,6 +1,6 @@
 // 서버 모드: 백엔드 API(backend/README.md, Swagger /docs)를 호출하는 구현.
 // mock/index.js 와 똑같은 이름·모양의 함수를 내보냅니다. 돌려주는 값은 백엔드 응답 그대로입니다.
-import { clearToken, imageFormData, notReadyError, request } from './api.js'
+import { imageFormData, notReadyError, request } from './api.js'
 
 // ----- 재료 -----
 
@@ -150,7 +150,6 @@ export async function recognizeIngredients(photo) {
 
 // ----- 기타 -----
 
-// 서버 데이터는 지우지 않고, 로그인 토큰만 지웁니다.
-export async function resetAllData() {
-  await clearToken()
-}
+// 서버 모드는 아무것도 지우지 않습니다. (서버 데이터와 기기 번호 모두 그대로)
+// 기기 번호를 지우면 서버에서 새 사용자로 바뀌어서 일부러 두었습니다.
+export async function resetAllData() {}

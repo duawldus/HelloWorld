@@ -28,7 +28,7 @@ export const API_BASE_URL = 'http://localhost:8000' // 서버 주소 (폰은 PC�
 | --- | --- | --- |
 | 저장 위치 | 폰(브라우저) 안 | 백엔드 DB |
 | 처음 데이터 | 와이어프레임과 같은 재료 8개, 240 XP | 새 사용자라 비어 있음 |
-| 로그인 | 없음 | 자동 게스트 로그인 (토큰을 알아서 붙여 줌) |
+| 로그인 | 없음 | 없음. 기기 번호를 `X-Device-Id` 헤더로 자동으로 붙여 줌 (처음 한 번 만들어 저장) |
 | 규칙(XP·레벨·뱃지) | `src/data/mock/rules.js` (백엔드와 같은 값) | 백엔드가 계산 |
 
 ---
@@ -292,7 +292,7 @@ export default function MyScreen() {
 | `matchesName(재료.name, 검색어)` | 이름이 검색어에 맞는지 (초성 `'ㄷㅂ'`도 됨) |
 | `STORAGE_TYPES` | `['FRIDGE', 'FREEZER', 'ROOM']` |
 | `IS_SERVER_MODE` | 지금 서버 모드면 `true` |
-| `resetAllData()` | 가짜 모드: 테스트 데이터로 처음부터 다시 / 서버 모드: 로그인 토큰만 지움 |
+| `resetAllData()` | 가짜 모드: 테스트 데이터로 처음부터 다시 / 서버 모드: 아무것도 안 지움 (기기 번호는 두 모드 모두 유지) |
 
 - XP 점수·레벨 기준은 **백엔드** `backend/app/features/gamification/rules.py`가 기준이에요. 바뀌면 가짜 모드용 `src/data/mock/rules.js`도 같이 맞춰 주세요.
 - 색은 `src/theme/colors.js`에서 가져다 쓰세요. (예: `colors.primary`)
