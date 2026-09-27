@@ -31,7 +31,7 @@
 | ORM | SQLAlchemy 2.0 |
 | DB | **SQLite** (개발 단계. 추후 PostgreSQL + Alembic 전환 예정 — `DATABASE_URL`만 바꾸면 됨) |
 | LLM | Claude API (`anthropic` SDK) — `app/common/llm`을 통해서만 호출 |
-| 인증 | 기기 ID 기반 게스트 로그인 + JWT (카카오·구글 소셜 로그인은 TODO) |
+| 사용자 식별 | **로그인 없음** — 기기 고유 ID를 `X-Device-Id` 헤더로 전송 |
 | 푸시 알림 | Expo Push (발송 로직은 TODO) |
 | 스케줄러 | APScheduler |
 | Lint / Test | Ruff / pytest |
@@ -62,11 +62,14 @@ uvicorn app.main:app --reload
 - Swagger 문서: http://localhost:8000/docs ← **프론트와 API 확인은 여기서**
 - 서버가 처음 뜰 때 테이블 생성 + 기본 데이터(양념 12종, 재료 프리셋 27종, 레시피 7개, 뱃지 6개)가 자동으로 들어갑니다.
 
-### Swagger에서 인증하기
+### 사용자 구분 (로그인 없음)
 
-1. `POST /api/v1/auth/guest`에 `{"device_id": "my-test-device-01"}` 전송
-2. 응답의 `access_token` 복사
-3. 오른쪽 위 **Authorize** 버튼 → 토큰 붙여넣기
+로그인·회원가입이 없습니다. 앱이 설치될 때 기기 고유 ID(UUID)를 한 번 만들어 저장해두고, **모든 요청에 `X-Device-Id` 헤더로 보내면** 됩니다.
+
+- 처음 보는 ID면 서버가 사용자를 자동으로 만들고, 이후엔 같은 사용자로 취급해요.
+- 앱 시작 시 `GET /api/v1/users/me` → `onboarded`가 `false`면 온보딩(기본 양념 설정) 화면으로.
+- Swagger에서는 오른쪽 위 **Authorize** 버튼 → `X-Device-Id`에 아무 값(8자 이상, 예: `my-test-device-01`) 입력.
+- 앱을 지웠다 다시 깔면 새 ID가 생겨서 데이터가 이어지지 않아요. (필요해지면 그때 로그인 도입)
 
 ### 테스트 · 린트
 
@@ -92,14 +95,12 @@ backend/
 │   │   ├── db/               # 🔒 DB 공통 모듈 (엔진, 세션, Base) — 담당자 외 수정 금지
 │   │   ├── llm/              # 🔒 Claude API 공통 모듈 — 담당자 외 수정 금지
 │   │   ├── config.py         #   환경 변수 설정
-│   │   ├── deps.py           #   DbSession, CurrentUser 의존성
-│   │   ├── security.py       #   JWT
+│   │   ├── deps.py           #   DbSession, CurrentUser(X-Device-Id) 의존성
 │   │   ├── exceptions.py     #   공통 예외 → {"code", "message"} 응답
 │   │   ├── time.py           #   now(), today(), d_day() — 항상 KST
 │   │   ├── models.py         #   created_at / updated_at 믹스인
 │   │   └── schemas.py        #   ORMModel 등
 │   ├── features/             # 🧩 기능별 코드 (기능 하나당 폴더 하나)
-│   │   ├── auth/             #   게스트 로그인
 │   │   ├── users/            #   내 정보, 기본 양념(온보딩)
 │   │   ├── home/             #   홈 대시보드 (다른 기능 조합)
 │   │   ├── ingredients/      #   냉장고 재료, 프리셋
@@ -130,36 +131,33 @@ backend/
 
 | 기능 | 관련 화면 | 담당 | 상태 | 남은 TODO |
 | --- | --- | --- | --- | --- |
-| `auth` | 최초 진입 | | ✅ | **카카오·구글 소셜 로그인** (지금은 게스트 로그인) |
-| `users` | 0 온보딩 · 기본 양념 | | ✅ | |
-| `ingredients` | 2 냉장고, 3 식재료 추가 | | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
-| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | | 🚧 | Claude 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
-| `recipes` | 4 레시피 추천, 5 레시피 상세 | | 🚧 | **추천 알고리즘**, **요리 완료(재료 소진 + XP)**, **실행 취소** |
-| `reminders` | 6 생활 알림, 7 알림 추가 | | ✅ | 같은 회차 중복 완료 방지 |
-| `gamification` | 8 성과 · 뱃지 | | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
-| `home` | 1 홈 대시보드 | | ✅ | recipes 추천 완성되면 `_today_recipe`의 try 제거 |
-| `notifications` | 9 푸시 알림 | | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
+| `ingredients` | 2 냉장고, 3 식재료 추가 | 팀원 | ✅ | 재료명 동의어 매칭 (`파`→`대파`) |
+| `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 팀원 | 🚧 | Claude 연동 코드는 있음 → **실제 사진으로 프롬프트 튜닝**, 중복 인식 합치기 |
+| `users` | 0 온보딩 · 기본 양념 | WSY129 | ✅ | |
+| `home` | 1 홈 대시보드 | WSY129 | ✅ | recipes 추천 완성되면 `_today_recipe`의 try 제거 |
+| `recipes` | 4 레시피 추천, 5 레시피 상세 | WSY129 | 🚧 | **추천 알고리즘**, **요리 완료(재료 소진 + XP)**, **실행 취소** |
+| `reminders` | 6 생활 알림, 7 알림 추가 | WSY129 | ✅ | 같은 회차 중복 완료 방지 |
+| `gamification` | 8 성과 · 뱃지 | WSY129 | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
+| `notifications` | 9 푸시 알림 | WSY129 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
 
 - 아직 구현 안 된 기능은 `raise NotImplementedError` → API가 **501**을 돌려줍니다. 요청/응답 스키마는 이미 정의돼 있어서 **프론트는 Swagger 보고 먼저 붙일 수 있어요.**
 - 코드에서 할 일 찾기: `grep -rn "TODO(" app/` → `TODO(recipes)`처럼 기능 이름이 붙어 있습니다.
 - 사진 인식은 `.env`의 `AI_MOCK=true`(기본값)면 Claude를 호출하지 않고 와이어프레임과 같은 가짜 결과(두부 98%, 계란 95%, 대파 72%)를 돌려줍니다. **API 비용 0원.**
 
-### 추천 분담 예시 (백엔드 2명)
+### 경계가 겹치는 곳
 
-| A | B |
-| --- | --- |
-| `ingredients`, `vision`, `recipes` (냉장고 → 레시피 흐름) | `reminders`, `notifications`, `gamification`, `home` (알림 · 성과 흐름) |
+- `recipes`(WSY129)는 냉장고 재료를 `ingredients.list_active()`로 읽기만 해요. 요리 완료 시 재료 소진 처리가 필요하면 **`ingredients` 쪽에 공개 함수를 추가해달라고 요청**하거나, 합의 후 추가해주세요.
+- `ingredients`·`vision`(팀원)이 XP를 줄 때는 `gamification.award_xp()`만 호출해요. XP 수치는 WSY129가 `rules.py`에서 관리.
 
 ---
 
 ## 📡 API 목록
 
-모든 경로 앞에 `/api/v1`이 붙고, `auth/guest`를 뺀 전부 `Authorization: Bearer <token>`이 필요합니다.
+모든 경로 앞에 `/api/v1`이 붙고, 전부 `X-Device-Id: <기기 ID>` 헤더가 필요합니다.
 
 | 기능 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- | --- |
-| auth | POST | `/auth/guest` | 기기 ID로 로그인/가입 → 토큰 | ✅ |
-| users | GET | `/users/me` | 내 정보 | ✅ |
+| users | GET | `/users/me` | 내 정보 (처음 보는 기기면 자동 생성) | ✅ |
 | | PATCH | `/users/me` | 닉네임 수정 | ✅ |
 | | GET | `/users/me/seasonings` | 기본 양념 목록 + 보유 여부 | ✅ |
 | | PUT | `/users/me/seasonings` | 보유 양념 저장 (온보딩 완료 처리) | ✅ |
@@ -192,7 +190,7 @@ backend/
 
 | HTTP | code | 언제 |
 | --- | --- | --- |
-| 401 | `UNAUTHORIZED` | 토큰 없음/만료 |
+| 401 | `UNAUTHORIZED` | `X-Device-Id` 헤더 없음 |
 | 404 | `NOT_FOUND` | 없는 리소스, 남의 리소스 |
 | 422 | `VALIDATION_ERROR` | 비즈니스 검증 실패 (지난 유통기한 등) |
 | 422 | (FastAPI 기본) | 요청 형식 오류 → `detail` 배열 |
@@ -246,7 +244,7 @@ backend/
 
 - `router.py`: 입력을 받아 service를 부르는 것까지만. 로직을 넣지 않아요.
 - `service.py`: 로직 + `db.commit()`. 에러는 `app.common.exceptions`의 `NotFoundError`, `ValidationError` 등을 raise.
-- 로그인한 사용자는 `user: CurrentUser`, DB는 `db: DbSession`으로 받습니다 (`app.common.deps`).
+- 요청한 사용자는 `user: CurrentUser`, DB는 `db: DbSession`으로 받습니다 (`app.common.deps`).
 
 ### 4. 날짜 · 시간
 

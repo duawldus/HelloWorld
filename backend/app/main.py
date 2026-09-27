@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.common.config import settings
 from app.common.db import SessionLocal, create_all_tables
 from app.common.exceptions import register_exception_handlers
-from app.features.auth.router import router as auth_router
 from app.features.gamification.router import router as gamification_router
 from app.features.home.router import router as home_router
 from app.features.ingredients.router import router as ingredients_router
@@ -52,7 +51,6 @@ register_exception_handlers(app)
 
 # 도메인 라우터 등록 — 새 도메인을 만들면 여기에 추가
 for router in (
-    auth_router,
     users_router,
     home_router,
     ingredients_router,

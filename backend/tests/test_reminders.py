@@ -48,7 +48,7 @@ def test_monthly_clamps_to_last_day():
     assert next_occurrence(r, datetime(2026, 2, 1)) == datetime(2026, 2, 28, 20, 0)
 
 
-def test_crud_and_toggle(client, auth_headers):
+def test_crud_and_toggle(client, device_headers):
     payload = {
         "category": "LAUNDRY",
         "title": "빨래하기",
@@ -56,26 +56,26 @@ def test_crud_and_toggle(client, auth_headers):
         "weekdays": [1, 4],
         "remind_time": "20:00",
     }
-    created = client.post(API, json=payload, headers=auth_headers).json()
+    created = client.post(API, json=payload, headers=device_headers).json()
     assert created["summary"] == "매주 화·금 · 오후 8:00"
 
-    body = client.get(API, headers=auth_headers).json()
+    body = client.get(API, headers=device_headers).json()
     assert body["enabled_count"] == 1
     assert body["groups"][0]["category"] == "LAUNDRY"
 
-    toggled = client.patch(f"{API}/{created['id']}", json={"enabled": False}, headers=auth_headers).json()
+    toggled = client.patch(f"{API}/{created['id']}", json={"enabled": False}, headers=device_headers).json()
     assert toggled["enabled"] is False
     assert toggled["next_notify_at"] is None
 
 
-def test_weekly_requires_weekdays(client, auth_headers):
+def test_weekly_requires_weekdays(client, device_headers):
     payload = {"category": "CLEANING", "title": "청소", "repeat_type": "WEEKLY", "remind_time": "09:00"}
-    assert client.post(API, json=payload, headers=auth_headers).status_code == 422
+    assert client.post(API, json=payload, headers=device_headers).status_code == 422
 
 
-def test_complete_awards_xp(client, auth_headers):
+def test_complete_awards_xp(client, device_headers):
     payload = {"category": "CLEANING", "title": "분리수거", "repeat_type": "DAILY", "remind_time": "21:00"}
-    rid = client.post(API, json=payload, headers=auth_headers).json()["id"]
-    assert client.post(f"{API}/{rid}/complete", headers=auth_headers).json()["xp"]["amount"] == 5
-    logs = client.get("/api/v1/gamification/xp-logs", headers=auth_headers).json()
+    rid = client.post(API, json=payload, headers=device_headers).json()["id"]
+    assert client.post(f"{API}/{rid}/complete", headers=device_headers).json()["xp"]["amount"] == 5
+    logs = client.get("/api/v1/gamification/xp-logs", headers=device_headers).json()
     assert logs[0]["description"] == "분리수거 완료"

@@ -1,9 +1,26 @@
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common.exceptions import ValidationError
 from app.features.users.models import Seasoning, User, UserSeasoning
 from app.features.users.schemas import SeasoningOption, UserUpdate
+
+
+def get_or_create_by_device(db: Session, device_id: str) -> User:
+    """X-Device-Id 로 사용자 조회. 처음 보는 기기면 새로 만든다 (로그인 없음)."""
+    user = db.scalar(select(User).where(User.device_id == device_id))
+    if user is not None:
+        return user
+    try:
+        user = User(device_id=device_id)
+        db.add(user)
+        db.commit()
+    except IntegrityError:
+        # 같은 기기의 첫 요청 여러 개가 동시에 들어온 경우
+        db.rollback()
+        user = db.scalar(select(User).where(User.device_id == device_id))
+    return user
 
 
 def update_me(db: Session, user: User, data: UserUpdate) -> User:

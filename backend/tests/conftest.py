@@ -41,6 +41,5 @@ def client(db):
 
 
 @pytest.fixture()
-def auth_headers(client) -> dict[str, str]:
-    res = client.post("/api/v1/auth/guest", json={"device_id": "test-device-0001"})
-    return {"Authorization": f"Bearer {res.json()['access_token']}"}
+def device_headers() -> dict[str, str]:
+    return {"X-Device-Id": "test-device-0001"}

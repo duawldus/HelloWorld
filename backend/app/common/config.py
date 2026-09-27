@@ -15,11 +15,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./bangguseok.db"
     SEED_ON_STARTUP: bool = True
 
-    # 인증 (게스트 JWT)
-    JWT_SECRET: str = "dev-only-secret-change-me-in-dotenv-file"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_DAYS: int = 30
-
     # 시간
     TIMEZONE: str = "Asia/Seoul"
 

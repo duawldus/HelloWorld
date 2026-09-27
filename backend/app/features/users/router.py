@@ -11,6 +11,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserRead)
 def get_me(user: CurrentUser):
+    """앱 시작 시 호출. 처음 보는 기기면 자동 생성된다. onboarded=False 면 온보딩 화면으로."""
     return user
 
 
