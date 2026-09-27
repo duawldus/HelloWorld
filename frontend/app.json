@@ -38,7 +38,8 @@
         {
           "backgroundColor": "#4a5ae8"
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "scheme": "bangguseok"
   }

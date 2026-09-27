@@ -1,12 +1,14 @@
 // 앱 전체의 가장 바깥 틀
 // 웹 브라우저에서 넓은 화면으로 열면 가운데에 휴대폰 모양 틀을 보여 줍니다.
 // 앱을 켜면 맨 위에 스플래시를 덮어 두고, 그동안 온보딩 여부를 불러옵니다. (빈 화면 깜빡임 방지)
+// 푸시 알림 설정(알림을 누르면 해당 화면으로 이동, 예약 맞추기)도 여기서 한 번 합니다.
 import { useCallback, useEffect, useState } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { isOnboarded } from '../data'
 import { SplashOverlay } from '../components/SplashOverlay'
+import { useNotificationSetup } from '../notifications'
 import { colors } from '../theme/colors'
 
 export default function RootLayout() {
@@ -14,6 +16,7 @@ export default function RootLayout() {
   const showPhoneFrame = Platform.OS === 'web' && width > 500
   const [dataReady, setDataReady] = useState(false)
   const [splashDone, setSplashDone] = useState(false)
+  useNotificationSetup()
 
   // 온보딩 여부를 미리 불러 둡니다. 결과는 기억돼서 (tabs)/_layout.js 가 바로 온보딩/홈을 고릅니다.
   // 실패해도(서버 연결 실패 등) 스플래시에 갇히지 않게 넘어갑니다.

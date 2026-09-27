@@ -75,3 +75,32 @@ export function createDummyProgress() {
     ],
   }
 }
+
+// 생활 알림 (와이어프레임 6번과 같은 항목. 관리비만 꺼 둠 → '알림 5개 켜짐')
+// weekdays: 0=월 ... 6=일, remind_time: 'HH:MM:SS'
+export function createDummyReminders() {
+  const anchor_date = todayString() // 2주마다 같은 간격 계산의 기준일
+  const reminder = (id, category, title, rule, remind_time, notify_before_days = 0, enabled = true) => ({
+    id,
+    category,
+    title,
+    interval: 1,
+    weekdays: [],
+    day_of_month: null,
+    ...rule,
+    remind_time,
+    notify_before_days,
+    enabled,
+    anchor_date,
+    last_done_at: null,
+  })
+
+  return [
+    reminder(1, 'LAUNDRY', '빨래하기', { repeat_type: 'WEEKLY', weekdays: [1, 4] }, '20:00:00'), // 매주 화·금
+    reminder(2, 'LAUNDRY', '수건·침구 빨래', { repeat_type: 'WEEKLY', interval: 2, weekdays: [5] }, '10:00:00'), // 2주마다 토
+    reminder(3, 'CLEANING', '분리수거', { repeat_type: 'WEEKLY', weekdays: [2] }, '21:00:00'), // 매주 수
+    reminder(4, 'CLEANING', '화장실 청소', { repeat_type: 'WEEKLY', weekdays: [6] }, '11:00:00'), // 매주 일
+    reminder(5, 'BILL', '전기요금', { repeat_type: 'MONTHLY', day_of_month: 25 }, '09:00:00', 3), // 매달 25일, 3일 전
+    reminder(6, 'BILL', '관리비', { repeat_type: 'MONTHLY', day_of_month: 10 }, '09:00:00', 3, false),
+  ]
+}

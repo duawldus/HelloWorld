@@ -215,3 +215,82 @@ export function FlameIcon(props) {
     </Icon>
   )
 }
+
+// ----- 생활 알림 -----
+
+// 세탁 (티셔츠)
+export function ShirtIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Path d="M9 4 4.5 6 3 10.5l3 1.2V20h12v-8.3l3-1.2L19.5 6 15 4a3 3 0 0 1-6 0z" />
+    </Icon>
+  )
+}
+
+// 청소 (빗자루)
+export function BroomIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Path d="M20 4l-6.5 6.5" />
+      <Path d="M12 9.5 14.5 12c.6.6.6 1.5 0 2.1L10 18.6c-1.8-.3-3.4-1.1-4.7-2.4S3.2 13.3 2.9 11.5L7.4 7c.6-.6 1.5-.6 2.1 0z" />
+      <Path d="M5.5 17.5 8 15M8 19.5l2-2" />
+    </Icon>
+  )
+}
+
+// 공과금 (영수증)
+export function ReceiptIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5z" />
+      <Path d="M9 8h6M9 12h6M9 16h3" />
+    </Icon>
+  )
+}
+
+// 기타 (태그)
+export function TagIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8a1 1 0 0 1 0 1.4l-7.6 7.6a1 1 0 0 1-1.4 0z" />
+      <Circle cx="8" cy="8" r="1.5" />
+    </Icon>
+  )
+}
+
+// 알림 종류별 아이콘. 예) <CategoryIcon category="BILL" />
+export function CategoryIcon({ category, ...props }) {
+  if (category === 'LAUNDRY') return <ShirtIcon {...props} />
+  if (category === 'CLEANING') return <BroomIcon {...props} />
+  if (category === 'BILL') return <ReceiptIcon {...props} />
+  return <TagIcon {...props} />
+}
+
+// 주의 (세모 안 !) — 홈의 유통기한 임박 안내
+export function WarningIcon(props) {
+  return (
+    <Icon size={18} color={colors.primaryDark} {...props}>
+      <Path d="M10.3 4.2 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z" />
+      <Path d="M12 9.5v4M12 17h.01" />
+    </Icon>
+  )
+}
+
+// 오른쪽 화살표 (더보기)
+export function ChevronRightIcon(props) {
+  return (
+    <Icon size={16} {...props}>
+      <Path d="m9 6 6 6-6 6" />
+    </Icon>
+  )
+}
+
+// 정보 안내 (동그라미 안 i)
+export function InfoIcon(props) {
+  return (
+    <Icon size={18} color={colors.primary} {...props}>
+      <Circle cx="12" cy="12" r="8.5" />
+      <Path d="M12 11v5M12 8h.01" />
+    </Icon>
+  )
+}

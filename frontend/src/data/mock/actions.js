@@ -1,4 +1,4 @@
-// 가짜 모드의 재료 차감 · 요리 완료(+실행 취소) · 집안일 완료
+// 가짜 모드의 재료 차감 · 요리 완료(+실행 취소)  (집안일 완료는 reminders.js)
 import { loadCookLogs, loadIngredients, nextId, saveCookLogs, saveIngredients } from './storage.js'
 import { findActive, toRead } from './ingredients.js'
 import { awardXp, revokeXp } from './gamification.js'
@@ -99,10 +99,4 @@ export async function undoCooking(cookLogId) {
     restored_ingredient_ids: restoreIds,
     xp_revoked: cookLog.xp_awarded,
   }
-}
-
-// POST /reminders/{id}/complete 와 같은 모양 ({ reminder, xp }). 가짜 모드는 알림 데이터가 없어 reminder 는 null
-export async function completeChore({ name }) {
-  const xp = await awardXp([{ action: 'CHORE_COMPLETE', description: `${name} 완료` }]) // 백엔드와 같은 '세탁 완료' 형식
-  return { reminder: null, xp }
 }

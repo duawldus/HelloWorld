@@ -95,9 +95,49 @@ export function undoCooking(cookLogId) {
   return request(`/recipes/cook-logs/${cookLogId}/undo`, { method: 'POST' })
 }
 
-// POST /reminders/{reminderId}/complete → { reminder, xp }
-export function completeChore({ reminderId }) {
+// ----- 생활 알림 -----
+
+// GET /reminders → { enabled_count, next_reminder, groups: [{ category, items }] }
+export function getReminders() {
+  return request('/reminders')
+}
+
+// GET /reminders/{id}
+export function getReminder(id) {
+  return request(`/reminders/${id}`)
+}
+
+// POST /reminders (ReminderCreate)
+export function addReminder(input) {
+  return request('/reminders', { method: 'POST', body: input })
+}
+
+// PATCH /reminders/{id} (부분 수정 / 켜고 끄기 { enabled: false })
+export function updateReminder(id, changes) {
+  return request(`/reminders/${id}`, { method: 'PATCH', body: changes })
+}
+
+// DELETE /reminders/{id}
+export function deleteReminder(id) {
+  return request(`/reminders/${id}`, { method: 'DELETE' })
+}
+
+// POST /reminders/{reminderId}/complete → { reminder, xp }  (+5 XP)
+export async function completeChore({ reminderId }) {
+  if (!reminderId) throw new Error('서버 모드에서는 reminderId 가 필요해요.')
   return request(`/reminders/${reminderId}/complete`, { method: 'POST' })
+}
+
+// ----- 푸시 알림 -----
+
+// POST /notifications/devices  { token: 'ExponentPushToken[...]', platform: 'IOS' | 'ANDROID' | 'WEB' }
+export function registerPushDevice(token, platform) {
+  return request('/notifications/devices', { method: 'POST', body: { token, platform } })
+}
+
+// DELETE /notifications/devices/{token}
+export function unregisterPushDevice(token) {
+  return request(`/notifications/devices/${encodeURIComponent(token)}`, { method: 'DELETE' })
 }
 
 // ----- 성과 -----

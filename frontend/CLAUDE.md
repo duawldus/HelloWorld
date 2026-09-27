@@ -25,17 +25,24 @@
   - `onboarding.js`: 온보딩 · 기본 양념 설정 (처음 켰을 때만. `(tabs)/_layout.js`가 온보딩 전이면 여기로 보냄, `?mode=edit`는 수정 모드)
   - `ingredient/`: 탭바 없는 하위 화면 (`add.js` 식재료 추가, `form.js` 직접 입력·수정, `photo.js` 사진으로 등록, `review.js` 인식 결과 확인)
   - `recipe/[id].js`: 레시피 상세 (탭바 없음). 레시피 추천은 `(tabs)/recipe.js`
+  - `reminder/form.js`: 알림 추가 · 수정 (탭바 없음, `?id=`면 수정). 생활 알림 목록은 `(tabs)/alert.js`
 - `src/screens/`: 실제 화면 코드. `src/app/`의 파일은 여기 화면을 연결만 한다
 - `src/components/`: 여러 화면이 같이 쓰는 부품 (`Screen.js` 바탕·제목·뒤로 가기 헤더, `SearchBar.js` 검색창, `Toast.js` 아래 알림, `FormFields.js` 입력칸·칩·유통기한 선택, `BottomSheet.js` 아래에서 올라오는 창, `SplashOverlay.js` 앱 시작 스플래시, `Icons.js` 아이콘)
 - `src/theme/colors.js`: 공통 색상
+- `src/notifications/`: 푸시 알림. `expo-notifications`는 이 폴더에서만 쓴다
+  - `index.js`: 권한, 알림 누르면 화면 이동, 예약 맞추기(`useNotificationSetup`은 `src/app/_layout.js`에서 한 번). 서버 푸시 토큰 등록
+  - `messages.js`: 푸시 문구·예약 시각 만들기 (순수 함수, 와이어프레임 9번 · 백엔드 `notifications/jobs.py`와 같은 시나리오)
+  - 누가 보낼지는 `src/data/config.js`의 `PUSH_SOURCE` (`'local'` 앱이 예약, 기본 / `'server'` 백엔드가 발송)
 - `src/data/`: 앱 데이터
   - `config.js`: 모드 스위치(`DATA_MODE`)와 백엔드 주소(`API_BASE_URL`, 폰은 PC IP)
   - `index.js`: 화면이 가져다 쓰는 입구. 모드에 따라 `mock/` 또는 `server/` 구현을 연결
   - `utils.js`: 두 모드 공통 도구 (날짜, `storageLabel`, `matchesName`)
+  - `reminderSchedule.js`: 생활 알림 반복 규칙 (다음 날짜 계산, 요약 문구). 백엔드 `reminders/schedule.py`·`summarize()`와 같게 유지한다
   - `server/`: 서버 모드. `api.js`(통신·기기 번호·에러), `index.js`(API별 함수)
   - `mock/`: 가짜 모드. 백엔드와 똑같이 동작하도록 흉내 냄
     - `rules.js`(XP·레벨·뱃지·임박·인식 기준), `presets.js`(재료 프리셋): 백엔드 `gamification/rules.py`, `seeds/data.py`와 같은 값으로 유지한다. 가짜 모드에서만 쓴다
     - `seasonings.js`: 기본 양념 12종(백엔드 seeds와 같은 값)과 보유 양념·온보딩 완료 여부
+    - `reminders.js`: 생활 알림 (백엔드 `/reminders` 흉내, 집안일 완료 +5 XP 포함)
     - `recipes.js`: 레시피 7개(백엔드 seeds와 같은 값)와 추천·상세 계산. 요리 완료 기록(실행 취소용)은 `storage.js`의 `cookLogs`
     - `dummyData.js`: 처음 시작 데이터. 바꾸면 `mock/storage.js`의 `DATA_VERSION`을 1 올린다 (예전 데이터가 새 더미로 초기화됨)
     - `KEEP_DATES_FROM_TODAY = true`(`mock/storage.js`): 저장된 날짜를 매일 오늘 기준으로 옮겨 D-day가 항상 같게 보임 (발표용)
@@ -50,8 +57,14 @@
 - `npx expo start --web`: 웹 브라우저로 바로 열기
 - `npx expo install <패키지>`: 패키지 설치는 npm install 대신 항상 이것으로 (SDK에 맞는 버전 설치)
 - `npx expo-doctor`: 설정·패키지 버전 문제 검사
-- 스플래시 1.5초 건너뛰기(개발용): `src/data/config.js`의 `DEV_SKIP_SPLASH = true` (커밋 전 `false`로). 실제 앱 빌드용 스플래시 배경은 `app.json`의 `expo-splash-screen` 플러그인 `backgroundColor`(메인 색과 같게)
+- 스플래시(총 1.5초) 건너뛰기(개발용): `src/data/config.js`의 `DEV_SKIP_SPLASH = true` (커밋 전 `false`로). 실제 앱 빌드용 스플래시 배경은 `app.json`의 `expo-splash-screen` 플러그인 `backgroundColor`(메인 색과 같게)
 - 온보딩 다시 보기(개발용): `src/data/config.js`의 `DEV_ALWAYS_SHOW_ONBOARDING = true` (커밋 전 `false`로), 또는 웹에서 `http://localhost:8081/onboarding` 주소로 이동
+
+## 푸시 알림 테스트
+- 웹에서는 푸시 알림이 없다. 폰(Expo Go)으로 테스트한다
+- 로컬 예약 알림(`PUSH_SOURCE = 'local'`)은 Expo Go에서 iOS·Android 모두 동작한다
+- 원격 푸시(`'server'`)는 개발 빌드 + EAS projectId가 필요하다 (Android Expo Go는 SDK 53부터 원격 푸시 불가)
+- 생활 알림 화면 아래 '개발용 · 5초 뒤 테스트 알림 보내기'로 바로 확인 (`__DEV__`일 때만 보임)
 
 ## Expo 주의
 - Expo SDK 57. Expo는 버전마다 API가 바뀌므로 코드를 쓰기 전에 `https://docs.expo.dev/versions/v57.0.0/` 문서를 확인한다

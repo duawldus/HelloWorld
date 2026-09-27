@@ -1,12 +1,12 @@
 // ⭐ 가짜 모드의 저장/불러오기는 이 파일에서만 합니다.
 // 폰(또는 브라우저) 안의 AsyncStorage 에 저장합니다. 서버 모드에서는 쓰지 않습니다.
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { createDummyIngredients, createDummyProgress } from './dummyData.js'
+import { createDummyIngredients, createDummyProgress, createDummyReminders } from './dummyData.js'
 import { addDays, daysBetween, todayString } from '../utils.js'
 
 // 더미 데이터(dummyData.js)나 저장 모양을 바꾸면 이 숫자를 1 올리세요.
 // 예전 버전이 저장된 기기는 앱을 켤 때 새 더미 데이터로 초기화됩니다.
-const DATA_VERSION = 6
+const DATA_VERSION = 7
 
 // true 면 날짜를 '오늘' 기준으로 유지합니다. (발표·테스트용)
 // 저장된 유통기한·연속 기록·XP 기록 날짜를 지난 날짜만큼 뒤로 옮겨서,
@@ -19,6 +19,7 @@ const KEYS = {
   meta: 'bangguseok.meta', // { version, baseDate }
   seasonings: 'bangguseok.seasonings', // { onboarded, owned_ids } — 냉장고 재료와 따로 저장
   cookLogs: 'bangguseok.cookLogs', // 요리 완료 기록 (실행 취소용)
+  reminders: 'bangguseok.reminders', // 생활 알림 (세탁·청소·공과금)
 }
 
 // 처음 설치 상태: 온보딩 전, 보유 양념 없음
@@ -65,12 +66,25 @@ export async function saveCookLogs(cookLogs) {
   await write(KEYS.cookLogs, cookLogs)
 }
 
+// 생활 알림 목록
+// [{ id, category, title, repeat_type, interval, weekdays, day_of_month, remind_time,
+//    notify_before_days, enabled, anchor_date, last_done_at }]
+export async function loadReminders() {
+  await ensurePrepared()
+  return readOrCreate(KEYS.reminders, createDummyReminders)
+}
+
+export async function saveReminders(reminders) {
+  await write(KEYS.reminders, reminders)
+}
+
 // 저장된 데이터를 지우고 더미 데이터로 다시 시작 (테스트용). 온보딩도 다시 뜹니다.
 export async function resetAllData() {
   await write(KEYS.ingredients, createDummyIngredients())
   await write(KEYS.progress, createDummyProgress())
   await write(KEYS.seasonings, initialSeasoningState())
   await write(KEYS.cookLogs, [])
+  await write(KEYS.reminders, createDummyReminders())
   await write(KEYS.meta, { version: DATA_VERSION, baseDate: todayString() })
 }
 

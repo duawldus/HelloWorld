@@ -128,6 +128,14 @@ recipe.checklist // [{ name: '대파', amount: '약간', owned: false, is_season
 recipe.steps     // [{ step_no: 1, description: '두부를 1cm 두께로 썰고...' }, ...]
 ```
 
+인분 바꾸기: 상세 화면에서 몇 인분 만들지 고르면(기본 1인분, 최대 `MAX_SERVINGS`=6) 체크리스트 양을 바꿔 보여 줘요.
+
+```js
+import { scaleAmount } from '../data'
+scaleAmount(item.amount, recipe.servings, 3) // '1/2모' → '1과 1/2모', '100g' → '300g', '약간' → '약간'
+```
+
+
 - 냉장고가 비어 있으면 `'식재료를 1개 이상 등록해 주세요'` 에러가 나요.
 - 가짜 모드는 백엔드 seeds와 같은 레시피 7개로 추천해요. 재료 이름이 조금 달라도 포함되면 같은 재료로 봐요 (`돼지고기` ↔ `돼지고기 앞다리살`). 백엔드는 아직 이름이 똑같아야 매칭돼요.
 - ⚠️ 백엔드 추천 API(`/recipes/recommendations`)는 아직 준비 중(501)이에요. 상세(`/recipes/{id}`)는 동작해요.
@@ -135,14 +143,16 @@ recipe.steps     // [{ step_no: 1, description: '두부를 1cm 두께로 썰고.
 ## 4. 집안일 완료 XP (생활알림 화면)
 
 ```js
-const result = await completeChore({ reminderId: 1, name: '세탁' }) // +5 XP
+const result = await completeChore({ reminderId: 1, name: '빨래하기' }) // +5 XP
 result.xp       // 아래 'XP 결과' 참고
-result.reminder // 서버 모드: 바뀐 알림 정보 / 가짜 모드: null (알림 데이터가 없음)
+result.reminder // 바뀐 알림 정보 (7번의 알림 모양)
 ```
 
-- 서버 모드는 `reminderId`(백엔드 알림 id), 가짜 모드는 `name`(XP 기록에 남는 이름)을 써요. 둘 다 넣어 두면 어느 모드든 동작해요.
+- 두 모드 모두 `reminderId`(알림 id)로 동작해요. `name`은 `reminderId` 없이 부를 때(가짜 모드만) XP 기록에 남는 이름이에요.
+- 생활 알림 화면(`AlertScreen.js`)에서 항목을 누르면 나오는 '완료했어요 · +5 XP' 버튼이 이렇게 쓰고 있어요.
+- 버튼에 보여 줄 XP 숫자는 `CHORE_XP`(5)를 쓰면 돼요.
 
-## XP 결과 (`result.xp`, 2~4번과 사진 등록 공통)
+## XP 결과 (`result.xp`, 3~4번과 사진 등록 공통)
 
 ```js
 result.xp.amount     // 이번에 얻은 XP (예: 20)
@@ -237,6 +247,89 @@ router.push({ pathname: '/onboarding', params: { mode: 'edit' } })
 
 ---
 
+## 7. 생활 알림 (생활알림 · 알림 추가 화면)
+
+모양은 백엔드 `reminders/schemas.py`의 `ReminderListResponse`, `ReminderRead`와 같아요.
+
+```js
+import {
+  getReminders, getReminder, addReminder, updateReminder, deleteReminder,
+  categoryLabel, dueLabel, formatNotifyTime,
+} from '../data'
+
+const list = await getReminders()
+list.enabled_count // '알림 5개 켜짐'
+list.next_reminder // 가장 가까운 알림 (상단 '다음 알림' 배너). 없으면 null
+list.groups        // [{ category: 'LAUNDRY', items: [알림, ...] }, ...]  세탁 → 청소 → 공과금 → 기타 순
+
+// 알림 하나
+{
+  id: 1,
+  category: 'LAUNDRY',          // 'LAUNDRY' 세탁 | 'CLEANING' 청소 | 'BILL' 공과금 | 'ETC' 기타 → categoryLabel()
+  title: '빨래하기',
+  repeat_type: 'WEEKLY',        // 'DAILY' | 'WEEKLY' | 'MONTHLY'
+  interval: 1,                  // N일/N주/N달마다 (2주마다 → 2)
+  weekdays: [1, 4],             // WEEKLY: 0=월 ... 6=일
+  day_of_month: null,           // MONTHLY: 1~31 (그 날이 없는 달은 말일)
+  remind_time: '20:00:00',
+  notify_before_days: 0,        // 0 = 당일, 3 = 3일 전에 미리 알림
+  enabled: true,
+  next_due_at: '2026-09-29T20:00:00',    // 다음에 해야 하는 날 (꺼져 있으면 null)
+  next_notify_at: '2026-09-29T20:00:00', // 다음 푸시 시각 (꺼져 있으면 null)
+  summary: '매주 화·금 · 오후 8:00',
+}
+
+dueLabel(item)                         // 목록 뱃지: '오늘' / '내일' / '9/26', 미리 알림이 있으면 'D-3'
+formatNotifyTime(item.next_notify_at)  // '오늘 오후 8:00', '9월 30일 (화) 오후 8:00'
+
+// 추가 (백엔드 ReminderCreate 모양)
+await addReminder({
+  category: 'BILL', title: '전기요금', repeat_type: 'MONTHLY', interval: 1,
+  weekdays: [], day_of_month: 25, remind_time: '09:00:00', notify_before_days: 3,
+})
+await updateReminder(id, { title: '빨래' })   // 바꿀 것만
+await updateReminder(id, { enabled: false })  // 켜고 끄기
+await deleteReminder(id)
+```
+
+- 매주 반복인데 요일이 없거나, 매달 반복인데 날짜가 없으면 에러가 나요 (백엔드와 같은 검사).
+- 가짜 모드는 와이어프레임 6번과 같은 알림 6개로 시작해요 (관리비만 꺼짐). 다음 날짜 계산은 `src/data/reminderSchedule.js`가 백엔드 `schedule.py`와 똑같이 해요.
+- 반복 문구 도구: `repeatRuleLabel(알림)` → `'매주 화·금'`, `reminderSummary(알림)` → `'매주 화·금 · 오후 8:00'`, `formatRemindTime('20:00:00')` → `'오후 8:00'`, `toTimeString(20, 0)` → `'20:00:00'`
+
+### 알림 추가 · 수정 화면 열기
+
+```js
+router.push('/reminder/form')                                  // 새 알림
+router.push({ pathname: '/reminder/form', params: { id: 3 } })  // 수정 (+ 삭제)
+```
+
+## 8. 푸시 알림 (`src/notifications/`)
+
+화면에서 따로 부를 것은 거의 없어요. 앱 전체 틀(`src/app/_layout.js`)이 알아서 해요.
+
+- **누가 보내나요?** `src/data/config.js`의 `PUSH_SOURCE`
+  - `'local'`(기본): 앱이 폰 안에서 알림을 직접 예약해요. 서버 없이, **Expo Go에서도** 동작해요.
+    생활 알림은 30일 앞까지, 유통기한 알림(임박 재료가 있는 날 오전 9시)은 7일 앞까지 예약하고,
+    앱을 열 때 · 재료나 알림이 바뀔 때마다(`onDataChange`) 예약을 새로 맞춰요.
+  - `'server'`: 백엔드가 Expo Push로 보내요. 앱은 푸시 토큰만 서버에 등록해요(`registerPushDevice`).
+    백엔드 발송 잡(`notifications/jobs.py`)이 완성되고, 개발 빌드 + EAS projectId가 있을 때 바꾸세요. (Android Expo Go는 원격 푸시를 못 받아요)
+- **알림을 누르면** 유통기한 알림은 레시피 추천(`/recipe`), 생활 알림은 생활 알림(`/alert`) 화면으로 가요.
+- **웹에서는** 푸시 알림이 없어요 (`PUSH_SUPPORTED`가 `false`).
+- 문구는 `src/notifications/messages.js` (와이어프레임 9번): '지금 빨래 시간이에요', '전기요금 납부일이 3일 남았어요', '두부 유통기한이 내일까지예요'
+
+```js
+import {
+  getNotificationPermission, requestNotificationPermission, openNotificationSettings, sendTestNotification,
+} from '../notifications'
+
+await getNotificationPermission()     // 'granted' | 'denied' | 'undetermined' | 'unsupported'(웹)
+await requestNotificationPermission() // 권한 창 (이미 정했으면 창 없이 결과만)
+openNotificationSettings()            // 거절했을 때 휴대폰 설정 열기
+await sendTestNotification()          // 개발용: 5초 뒤 테스트 알림
+```
+
+- 생활 알림 화면 맨 아래 **'개발용 · 5초 뒤 테스트 알림 보내기'**(개발 중에만 보임)로 바로 확인할 수 있어요. 누르고 앱을 닫고 기다려 보세요.
+
 ## 화면에서 불러오기 예시 (React Native)
 
 `useFocusEffect`를 쓰면 **화면이 보일 때마다** 새로 불러와요. 다른 화면에서 재료를 바꾸고 돌아와도 최신 상태가 보여요.
@@ -293,6 +386,7 @@ export default function MyScreen() {
 | `STORAGE_TYPES` | `['FRIDGE', 'FREEZER', 'ROOM']` |
 | `IS_SERVER_MODE` | 지금 서버 모드면 `true` |
 | `resetAllData()` | 가짜 모드: 테스트 데이터로 처음부터 다시 / 서버 모드: 아무것도 안 지움 (기기 번호는 두 모드 모두 유지) |
+| `onDataChange(함수)` | 재료·알림을 바꾸는 함수(추가·수정·삭제·요리 완료·집안일 완료 등)가 성공하면 불러 줌. 그만 들으려면 돌려받은 함수를 부름 (푸시 예약 맞추기에 씀) |
 
 - XP 점수·레벨 기준은 **백엔드** `backend/app/features/gamification/rules.py`가 기준이에요. 바뀌면 가짜 모드용 `src/data/mock/rules.js`도 같이 맞춰 주세요.
 - 색은 `src/theme/colors.js`에서 가져다 쓰세요. (예: `colors.primary`)

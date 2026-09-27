@@ -114,6 +114,42 @@ export function summarizeXpLogs(logs) {
     .map(({ action, ...row }) => row)
 }
 
+// ----- 레시피 인분 -----
+// 레시피 재료 양을 인분에 맞게 바꾸기. 숫자로 시작하지 않는 양('약간', '적당량')은 그대로 둡니다.
+// scaleAmount('1/2모', 1, 3) → '1과 1/2모', scaleAmount('100g', 1, 2) → '200g', scaleAmount('약간', 1, 2) → '약간'
+export const MAX_SERVINGS = 6
+
+export function scaleAmount(amount, baseServings, servings) {
+  if (!amount || !baseServings || baseServings === servings) return amount
+  const match = amount.match(/^\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+))?(.*)$/)
+  if (!match) return amount
+  const [, num, den, rest] = match
+  const value = (den ? Number(num) / Number(den) : Number(num)) * (servings / baseServings)
+  return `${formatQuantity(value)}${rest}`
+}
+
+// 숫자 읽는 소리에 맞는 조사: 1(일)과, 2(이)와, 5(오)와 ...
+const WA_GWA = ['과', '과', '와', '과', '와', '와', '과', '과', '과', '와']
+
+// 1.5 → '1과 1/2', 2.5 → '2와 1/2', 0.25 → '1/4', 2 → '2', 0.6 → '0.6'
+function formatQuantity(value) {
+  const whole = Math.floor(value + 1e-9)
+  const fraction = value - whole
+  if (fraction < 1e-9) return String(whole)
+  for (const den of [2, 3, 4]) {
+    const top = Math.round(fraction * den)
+    if (top > 0 && top < den && Math.abs(fraction - top / den) < 1e-6) {
+      const part = `${top / gcd(top, den)}/${den / gcd(top, den)}`
+      return whole > 0 ? `${whole}${WA_GWA[whole % 10]} ${part}` : part
+    }
+  }
+  return String(Math.round(value * 10) / 10)
+}
+
+function gcd(a, b) {
+  return b === 0 ? a : gcd(b, a % b)
+}
+
 // ----- 조사 -----
 // 받침에 따라 조사 붙이기. withJosa('대파', '을', '를') → '대파를', withJosa('계란', '이', '가') → '계란이'
 export function withJosa(word, withBatchim, withoutBatchim) {

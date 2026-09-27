@@ -3,10 +3,19 @@
 // - '요리 완료 (재료 소진)': completeCooking 한 번으로 쓴 재료를 냉장고에서 빼고 XP 를 받습니다.
 //   소진할 재료는 레시피에 맞는 내 재료 전부 (백엔드가 정함, ingredientIds 생략)
 // - 완료 후 XP 배너의 '실행 취소'로 재료와 XP 를 되돌릴 수 있습니다. (undoCooking)
+// - 몇 인분 만들지 고르면(기본 1인분) 재료 양이 그만큼 바뀝니다. (scaleAmount, '약간'처럼 숫자가 없는 양은 그대로)
 import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { completeCooking, difficultyLabel, getRecipe, undoCooking, withJosa } from '../data'
+import {
+  MAX_SERVINGS,
+  completeCooking,
+  difficultyLabel,
+  getRecipe,
+  scaleAmount,
+  undoCooking,
+  withJosa,
+} from '../data'
 import { ClockIcon, FlameIcon, ImageIcon } from '../components/Icons'
 import { BackHeader, Screen } from '../components/Screen'
 import { Toast, useToast } from '../components/Toast'
@@ -18,6 +27,7 @@ export default function RecipeDetailScreen() {
   const [loadError, setLoadError] = useState(null)
   const [cooked, setCooked] = useState(null) // completeCooking 결과
   const [busy, setBusy] = useState(false)
+  const [servings, setServings] = useState(1) // 몇 인분 만들지 (기본 1인분)
   const [toast, showToast] = useToast()
 
   const load = useCallback(() => {
@@ -88,20 +98,29 @@ export default function RecipeDetailScreen() {
           <View style={styles.metaRow}>
             <ClockIcon />
             <Text style={styles.metaText}>
-              {recipe.cook_minutes}분 · {difficultyLabel(recipe.difficulty)} · {recipe.servings}인분
+              {recipe.cook_minutes}분 · {difficultyLabel(recipe.difficulty)}
             </Text>
           </View>
           {recipe.description && <Text style={styles.description}>{recipe.description}</Text>}
 
-          <Text style={styles.sectionTitle}>재료 체크리스트</Text>
+          <View style={styles.sectionRow}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleInRow]}>재료 체크리스트</Text>
+            <ServingsStepper value={servings} onChange={setServings} />
+          </View>
           <View style={styles.checklist}>
-            {mainItems.map((item) => (
-              <ChecklistRow key={item.name} item={item} />
-            ))}
-            {seasoningItems.map((item) => (
-              <ChecklistRow key={item.name} item={item} />
+            {[...mainItems, ...seasoningItems].map((item) => (
+              <ChecklistRow
+                key={item.name}
+                item={item}
+                amount={scaleAmount(item.amount, recipe.servings, servings)}
+              />
             ))}
           </View>
+          {servings !== recipe.servings && (
+            <Text style={styles.servingsHint}>
+              재료 양을 {servings}인분에 맞게 바꿨어요 · 조리 순서의 물 양 등은 {recipe.servings}인분 기준이에요
+            </Text>
+          )}
 
           <Text style={styles.sectionTitle}>조리 순서</Text>
           <View style={styles.steps}>
@@ -141,8 +160,36 @@ export default function RecipeDetailScreen() {
   )
 }
 
+// 몇 인분: − 1인분 +  (1 ~ MAX_SERVINGS)
+function ServingsStepper({ value, onChange }) {
+  return (
+    <View style={styles.stepper}>
+      <Pressable
+        style={[styles.stepButton, value <= 1 && styles.buttonDisabled]}
+        onPress={() => onChange(value - 1)}
+        disabled={value <= 1}
+        accessibilityLabel="인분 줄이기"
+        hitSlop={6}
+      >
+        <Text style={styles.stepText}>−</Text>
+      </Pressable>
+      <Text style={styles.stepValue}>{value}인분</Text>
+      <Pressable
+        style={[styles.stepButton, value >= MAX_SERVINGS && styles.buttonDisabled]}
+        onPress={() => onChange(value + 1)}
+        disabled={value >= MAX_SERVINGS}
+        accessibilityLabel="인분 늘리기"
+        hitSlop={6}
+      >
+        <Text style={styles.stepText}>+</Text>
+      </Pressable>
+    </View>
+  )
+}
+
 // 재료 한 줄: ✓ 가진 재료 / + 없는 재료. 없으면 대체 재료 안내
-function ChecklistRow({ item }) {
+// amount: 고른 인분에 맞춘 양
+function ChecklistRow({ item, amount }) {
   const labels = []
   if (item.is_seasoning) labels.push('기본 양념')
   if (item.is_optional) labels.push('선택')
@@ -167,7 +214,7 @@ function ChecklistRow({ item }) {
           {item.name}
           {labels.length > 0 && <Text style={styles.checkLabel}> ({labels.join(' · ')})</Text>}
         </Text>
-        {item.amount && <Text style={styles.amount}>{item.amount}</Text>}
+        {amount && <Text style={styles.amount}>{amount}</Text>}
       </View>
       {hint && <Text style={[styles.checkHint, hint.have && styles.checkHintHave]}>{hint.text}</Text>}
     </View>
@@ -245,7 +292,54 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // 재료 체크리스트
+  // 재료 체크리스트 + 인분
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  sectionTitleInRow: {
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  stepButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+  },
+  stepText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  stepValue: {
+    minWidth: 52,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  servingsHint: {
+    marginTop: 10,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSub,
+  },
   checklist: {
     gap: 10,
   },
