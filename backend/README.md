@@ -137,7 +137,7 @@ backend/
 | `users` | 0 온보딩 · 기본 양념 | 우시연 | ✅ | |
 | `home` | 1 홈 대시보드 | 우시연 | ✅ | |
 | `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절·요리 완료·실행 취소 완료 → **`ingredients` 복구 함수 합치기 대기**(실행 취소), AI 프롬프트 튜닝 |
-| `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | 같은 회차 중복 완료 방지 |
+| `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | |
 | `gamification` | 8 성과 · 뱃지 | 우시연 | ✅ | |
 | `notifications` | 9 푸시 알림 | 우시연 | ✅ | 실기기에서 `PUSH_ENABLED=true`로 발송 확인 |
 
@@ -179,12 +179,12 @@ backend/
 | vision | POST | `/vision/recognize` | 사진 → 재료 후보 + 신뢰도 (multipart `image`) | ✅ (튜닝 TODO) |
 | recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족, 부족하면 AI 생성) | ✅ |
 | | GET | `/recipes/{id}?servings=` | 상세 (인분 환산된 재료, 보유/부족/대체재, 조리 순서) | ✅ |
-| | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP (임박 재료면 보너스) | ✅ (소진 함수 합치기 전엔 501) |
+| | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP (임박 재료면 보너스) | ✅ |
 | | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 → 재료 복구 + XP 회수 | ✅ (복구 함수 합치기 전엔 501) |
 | reminders | GET | `/reminders` | 카테고리별 목록 + 다음 알림 | ✅ |
 | | POST | `/reminders` | 알림 추가 | ✅ |
 | | GET / PATCH / DELETE | `/reminders/{id}` | 조회 / 수정·토글 / 삭제 | ✅ |
-| | POST | `/reminders/{id}/complete` | 집안일 완료 (+5 XP) | ✅ |
+| | POST | `/reminders/{id}/complete` | 집안일 완료 (+5 XP, 같은 회차에 다시 완료하면 0 XP) | ✅ |
 | gamification | GET | `/gamification/stats` | 레벨, XP, 연속 기록, 절약 식비 | ✅ |
 | | GET | `/gamification/badges` | 뱃지 목록 + 진행도 | ✅ |
 | | GET | `/gamification/xp-logs` | 최근 XP 로그 | ✅ |

@@ -261,6 +261,38 @@ export const PUSH_SOURCE = 'server' // 앱 예약 알림은 지우고 서버 푸
 
 ---
 
+## 4-3. 생활 알림: 마지막 완료 시각 + 같은 회차 중복 완료 방지 ✅ (`BACKEND_REQUESTS.md` 1번)
+
+**`ReminderRead`에 필드 2개 추가** (`GET /reminders`, `GET·PATCH /reminders/{id}`, 완료 응답의 `reminder`)
+| 이름 | 설명 |
+| --- | --- |
+| `last_done_at` | 마지막 완료 시각 (`"2026-09-23T10:00:00"`, 한국 시간), 없으면 `null` |
+| `done_this_cycle` | **이번 회차를 이미 완료했는지.** `true`면 완료 버튼 비활성화 |
+
+**회차 기준** — '해야 하는 날' 당일(시각 무관)까지가 그 회차이고, 다음 날부터는 다음 회차입니다.
+- 매일: 하루에 한 번
+- 매주 화·금: 화요일에 완료 → 화요일 회차 / **수·목·금에 완료 → 금요일 회차** (수요일에 미리 했으면 금요일엔 이미 완료)
+- 매달 25일, 3일 전 알림: 22일에 미리 납부해도 25일 회차 → 26일부터 다음 달 회차
+
+**`POST /reminders/{id}/complete`를 같은 회차에 다시 보내면** 에러가 아니라 `200`으로, 아무것도 바꾸지 않고 XP 0을 돌려줍니다.
+```json
+{ "reminder": { "...": "...", "last_done_at": "2026-09-23T10:00:00", "done_this_cycle": true },
+  "xp": { "amount": 0, "reasons": ["이미 완료한 집안일이에요"], "level_up": false, "new_badges": [] } }
+```
+- `xp.amount`가 0이면 XP 토스트를 띄우지 않거나 `reasons[0]`을 보여 주시면 됩니다.
+
+### 프론트 연결 (`AlertScreen.js`)
+지금 `isDoneToday`는 날짜만 비교해서, 매주·매달 알림은 '오늘 완료'가 아니어도 이미 완료한 회차일 수 있어요. 서버 모드에서는 `done_this_cycle`을 써 주세요.
+```js
+function isDoneToday(item) {
+  if (typeof item.done_this_cycle === 'boolean') return item.done_this_cycle // 서버 모드
+  return Boolean(item.last_done_at) && item.last_done_at.slice(0, 10) === todayString() // 가짜 모드
+}
+```
+문구는 '오늘 완료' 대신 '완료' 등으로 바꾸셔도 됩니다.
+
+---
+
 ## 5. 백엔드를 새로 받으신 뒤 해 주실 것
 
 테이블 구조가 바뀌어서 **로컬 DB를 한 번 지우고** 서버를 다시 켜 주세요.
@@ -285,5 +317,7 @@ uvicorn app.main:app --reload
 | 2-3. `level_min_xp` 추가 | 우시연 | ✅ 완료 — 요청하신 모양 그대로 (+ `level_hint`) |
 | 2-4. 뱃지 이름 "냉장고 클리너" | 우시연 | ✅ 완료 — DB 지우지 않아도 서버 재시작 시 반영 |
 | 2-5. 요리 완료 XP 문구 형식 | 우시연 | ✅ `"{레시피 이름} 요리 완료"` + `"유통기한 내 소진 보너스"` (같은 요리의 두 로그는 `created_at`이 같습니다) |
+| (새 요청서) 1. 생활 알림 `last_done_at` + 같은 회차 중복 완료 방지 | 우시연 | ✅ 완료 — 위 4-3. `done_this_cycle`도 추가 |
+| (새 요청서) 2. 푸시 알림 발송 | 우시연 | ✅ 완료 — 위 4-2. 채널(`expiry`·`reminders`)·딥링크 요청하신 값 그대로. `PUSH_SOURCE = 'server'` 부탁드려요 |
 
 완료되면 이 표를 갱신하겠습니다. 문의 사항은 PR 댓글이나 이 문서에 남겨 주세요. 감사합니다! 🙇

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ from app.features.gamification import service as gamification
 from app.features.gamification.rules import XpAction
 from app.features.gamification.schemas import XpGain
 from app.features.reminders.models import Reminder, ReminderCategory, RepeatType
-from app.features.reminders.schedule import next_notify_at
+from app.features.reminders.schedule import cycle_due_date, next_notify_at
 from app.features.reminders.schemas import (
     ReminderCompleteResponse,
     ReminderCreate,
@@ -38,9 +40,14 @@ def summarize(r: Reminder) -> str:
     return f"{rule} · {t}{before}"
 
 
+def is_done_this_cycle(r: Reminder, at: datetime) -> bool:
+    return r.last_done_at is not None and cycle_due_date(r, r.last_done_at) == cycle_due_date(r, at)
+
+
 def to_read(r: Reminder) -> ReminderRead:
     read = ReminderRead.model_validate(r)
     read.summary = summarize(r)
+    read.done_this_cycle = is_done_this_cycle(r, now())
     if r.enabled and (nxt := next_notify_at(r, now())):
         read.next_notify_at, read.next_due_at = nxt
     return read
@@ -102,10 +109,15 @@ def delete_reminder(db: Session, user: User, reminder_id: int) -> None:
 def complete_reminder(db: Session, user: User, reminder_id: int) -> ReminderCompleteResponse:
     """집안일 완료 체크 → +5 XP.
 
-    TODO(reminders): 같은 회차에 중복 완료 방지 (last_done_at 이 이번 회차 이후면 XP 미지급)
+    같은 회차에 이미 완료했으면 아무것도 바꾸지 않고 XP 0 으로 응답한다 (버튼 연타 · 중복 요청 대비).
     """
     reminder = get_owned(db, user, reminder_id)
-    reminder.last_done_at = now()
+    at = now()
+    if is_done_this_cycle(reminder, at):
+        return ReminderCompleteResponse(
+            reminder=to_read(reminder), xp=XpGain(amount=0, reasons=["이미 완료한 집안일이에요"])
+        )
+    reminder.last_done_at = at
     log, level_up = gamification.award_xp(
         db, user, XpAction.CHORE_COMPLETE, f"{reminder.title} 완료", ref_id=reminder.id
     )

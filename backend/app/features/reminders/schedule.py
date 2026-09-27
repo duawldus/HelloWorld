@@ -1,7 +1,7 @@
 """반복 규칙 → 다음 발생 시각 계산 (순수 함수, DB 의존 없음 → 단위 테스트 쉬움)."""
 
 import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from app.features.reminders.models import Reminder, RepeatType
 
@@ -65,3 +65,14 @@ def next_notify_at(r: Reminder, after: datetime) -> tuple[datetime, datetime] | 
             return notify, due
         probe = due
     return None
+
+
+def cycle_due_date(r: Reminder, at: datetime) -> date:
+    """at 이 속한 회차의 '해야 하는 날'. 해야 하는 날 당일(시각 무관)까지는 그 회차, 다음 날부터는 다음 회차.
+
+    예) 매주 화·금: 화요일 완료 → 화요일 회차 / 수·목·금 완료 → 금요일 회차.
+    규칙이 잘못돼 다음 날짜를 못 구하면 at 의 날짜(= 하루 1번)로 본다.
+    """
+    day_start = datetime.combine(at.date(), time.min)
+    due = next_occurrence(r, day_start - timedelta(microseconds=1))
+    return due.date() if due else at.date()

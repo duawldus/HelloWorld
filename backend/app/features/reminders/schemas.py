@@ -61,6 +61,8 @@ class ReminderRead(ORMModel):
     remind_time: time
     notify_before_days: int
     enabled: bool
+    last_done_at: datetime | None = None  # 마지막 완료 시각
+    done_this_cycle: bool = False  # 이번 회차를 이미 완료했는지 → 완료 버튼 비활성화
     next_due_at: datetime | None = None  # 다음에 해야 하는 날 (목록의 '오늘', '9/26', 'D-3')
     next_notify_at: datetime | None = None  # 다음 푸시 발송 시각
     summary: str = ""  # '매주 화·금 · 오후 8:00'

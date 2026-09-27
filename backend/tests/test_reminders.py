@@ -1,7 +1,8 @@
 from datetime import date, datetime, time
 
+from app.features.reminders import service
 from app.features.reminders.models import Reminder, ReminderCategory, RepeatType
-from app.features.reminders.schedule import next_notify_at, next_occurrence
+from app.features.reminders.schedule import cycle_due_date, next_notify_at, next_occurrence
 
 API = "/api/v1/reminders"
 
@@ -76,6 +77,54 @@ def test_weekly_requires_weekdays(client, device_headers):
 def test_complete_awards_xp(client, device_headers):
     payload = {"category": "CLEANING", "title": "분리수거", "repeat_type": "DAILY", "remind_time": "21:00"}
     rid = client.post(API, json=payload, headers=device_headers).json()["id"]
-    assert client.post(f"{API}/{rid}/complete", headers=device_headers).json()["xp"]["amount"] == 5
+    first = client.post(f"{API}/{rid}/complete", headers=device_headers).json()
+    assert first["xp"]["amount"] == 5
+    assert first["reminder"]["last_done_at"] is not None
+    assert first["reminder"]["done_this_cycle"] is True
     logs = client.get("/api/v1/gamification/xp-logs", headers=device_headers).json()
     assert logs[0]["description"] == "분리수거 완료"
+
+
+def test_cycle_due_date_weekly():
+    r = _reminder()  # 매주 화·금 20:00
+    # 화요일은 시각과 무관하게 화요일 회차
+    assert cycle_due_date(r, datetime(2026, 9, 22, 7, 0)) == date(2026, 9, 22)
+    assert cycle_due_date(r, datetime(2026, 9, 22, 23, 0)) == date(2026, 9, 22)
+    # 수·목·금 → 금요일 회차
+    assert cycle_due_date(r, datetime(2026, 9, 23, 12, 0)) == date(2026, 9, 25)
+    assert cycle_due_date(r, datetime(2026, 9, 25, 21, 0)) == date(2026, 9, 25)
+
+
+def test_cycle_due_date_monthly_notify_before():
+    r = _reminder(repeat_type=RepeatType.MONTHLY, weekdays=[], day_of_month=25, notify_before_days=3)
+    # 3일 전 알림 받고 22일에 납부해도 25일 회차
+    assert cycle_due_date(r, datetime(2026, 9, 22, 20, 0)) == date(2026, 9, 25)
+    assert cycle_due_date(r, datetime(2026, 9, 26, 9, 0)) == date(2026, 10, 25)
+
+
+def test_complete_twice_in_same_cycle_gives_no_xp(client, db, device_headers, monkeypatch):
+    payload = {
+        "category": "LAUNDRY",
+        "title": "빨래하기",
+        "repeat_type": "WEEKLY",
+        "weekdays": [1, 4],
+        "remind_time": "20:00",
+    }
+    rid = client.post(API, json=payload, headers=device_headers).json()["id"]
+    db.get(Reminder, rid).anchor_date = date(2026, 9, 21)  # 기본값은 실제 오늘이라 아래 시각보다 뒤일 수 있음
+    db.commit()
+    url = f"{API}/{rid}/complete"
+
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 9, 23, 10, 0))  # 수 → 금 회차
+    assert client.post(url, headers=device_headers).json()["xp"]["amount"] == 5
+
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 9, 25, 21, 0))  # 금 (같은 회차)
+    dup = client.post(url, headers=device_headers).json()
+    assert dup["xp"] == {"amount": 0, "reasons": ["이미 완료한 집안일이에요"], "level_up": False, "new_badges": []}
+    assert dup["reminder"]["last_done_at"].startswith("2026-09-23")  # 첫 완료 시각 유지
+
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 9, 26, 9, 0))  # 토 → 다음 화 회차
+    assert client.post(url, headers=device_headers).json()["xp"]["amount"] == 5
+
+    logs = client.get("/api/v1/gamification/xp-logs", headers=device_headers).json()
+    assert sum(log["description"] == "빨래하기 완료" for log in logs) == 2
