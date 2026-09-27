@@ -1,14 +1,19 @@
 import logging
 from dataclasses import dataclass, field
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.common.config import settings
-from app.common.exceptions import NotFoundError, ValidationError
+from app.common.exceptions import ConflictError, NotFoundError, ValidationError
 from app.common.llm import LLMError
-from app.common.time import d_day
+from app.common.time import d_day, now
+from app.features.gamification import service as gamification
+from app.features.gamification.rules import XpAction
+from app.features.gamification.schemas import XpGain
 from app.features.ingredients import service as ingredients
+from app.features.ingredients.models import IngredientStatus
 from app.features.recipes.generator import (
     GeneratedRecipe,
     GenerationRequest,
@@ -16,9 +21,10 @@ from app.features.recipes.generator import (
     MockRecipeGenerator,
     RecipeGenerator,
 )
-from app.features.recipes.models import Recipe, RecipeIngredient, RecipeSource, RecipeStep
+from app.features.recipes.models import CookLog, Recipe, RecipeIngredient, RecipeSource, RecipeStep
 from app.features.recipes.schemas import (
     ChecklistItem,
+    ConsumedIngredient,
     CookCompleteRequest,
     CookCompleteResponse,
     CookUndoResponse,
@@ -318,26 +324,110 @@ def get_detail(db: Session, user: User, recipe_id: int, servings: int = 1) -> Re
     )
 
 
+# ---------- 요리 완료 · 실행 취소 ----------
+
+COOK_XP_ACTIONS = [XpAction.COOK_COMPLETE, XpAction.EXPIRY_SAVE_BONUS]
+
+
+def _consume(db: Session, user: User, ingredient_ids: list[int]) -> list[dict]:
+    """ingredients 도메인(염지연)의 소진 함수 호출 → 실행 취소용 스냅샷을 만들어 반환."""
+    consumed = ingredients.consume_ingredients(db, user, ingredient_ids)
+    # consume_ingredients 는 ACTIVE 재료만 받고 수량은 건드리지 않으므로 이전 상태는 ACTIVE·현재 수량
+    return [
+        {
+            "ingredient_id": i.id,
+            "name": i.name,
+            "expires_on": i.expires_on.isoformat(),
+            "prev_quantity": i.quantity,
+            "prev_status": IngredientStatus.ACTIVE,
+        }
+        for i in consumed
+    ]
+
+
+def _restore(db: Session, user: User, snapshots: list[dict]) -> list[int]:
+    """ingredients 도메인(염지연)의 복구 함수 호출. 합치기 전이면 501."""
+    fn = getattr(ingredients, "restore_ingredients", None)
+    if fn is None:
+        raise NotImplementedError("재료 복구 기능(ingredients.restore_ingredients)을 합치는 중이에요.")
+    return fn(db, user, snapshots)
+
+
+def _auto_targets(db: Session, user: User, recipe: Recipe) -> list[int]:
+    """레시피 재료(양념 제외)마다 내 냉장고에서 가장 급한 재료 하나씩 고른다 (대체재 포함)."""
+    active = ingredients.list_active(db, user.id)  # 유통기한 임박순
+    chosen: list[int] = []
+    for ri in recipe.ingredients:
+        if ri.is_seasoning:
+            continue
+        names = [ri.name, *(ri.substitutes or [])]
+        match = next((i for i in active if i.name in names and i.id not in chosen), None)
+        if match:
+            chosen.append(match.id)
+    return chosen
+
+
 def complete_cooking(db: Session, user: User, recipe_id: int, data: CookCompleteRequest) -> CookCompleteResponse:
     """[화면 5] '요리 완료 (재료 소진)'.
 
-    TODO(recipes):
-      1. 소진 대상 재료 결정 (data.ingredient_ids 또는 레시피에 매칭된 보유 재료 전부)
-      2. 각 재료의 이전 상태를 CookLog.consumed_snapshot 에 저장
-      3. 재료 status=CONSUMED, consumed_at=now (수량 부분 차감은 기획 확인 후)
-      4. XP: gamification.award_xp(COOK_COMPLETE) + 유통기한 내 소진 재료가 있으면 EXPIRY_SAVE_BONUS
-      5. gamification.evaluate_badges() 후 XpGain 구성, commit
+    1. 소진할 재료: 요청의 ingredient_ids, 없으면 레시피 재료마다 가장 급한 내 재료를 자동 선택
+    2. 재료를 통째로 소진 (ingredients.consume_ingredients) — 스냅샷은 실행 취소용으로 CookLog 에 저장
+    3. XP: 요리 완료 + 임박 재료(D-0 ~ D-3)를 유통기한 안에 쓰면 '유통기한 내 소진 보너스'
     """
-    raise NotImplementedError("요리 완료 처리 구현 예정")
+    recipe = get_recipe(db, recipe_id)
+    target_ids = data.ingredient_ids or _auto_targets(db, user, recipe)
+    if not target_ids:
+        raise ValidationError("이 레시피에 쓸 수 있는 재료가 냉장고에 없어요.", code="NO_INGREDIENTS")
+
+    snapshots = _consume(db, user, target_ids)
+    cook_log = CookLog(user_id=user.id, recipe_id=recipe.id, consumed_snapshot=snapshots)
+    db.add(cook_log)
+    db.flush()  # cook_log.id 확보
+
+    consumed = []
+    for snap in snapshots:
+        left = d_day(date.fromisoformat(snap["expires_on"]))
+        consumed.append(
+            ConsumedIngredient(
+                ingredient_id=snap["ingredient_id"],
+                name=snap["name"],
+                before_expiry=left >= 0,
+                imminent=0 <= left <= settings.IMMINENT_DAYS,
+            )
+        )
+
+    log, level_up = gamification.award_xp(
+        db, user, XpAction.COOK_COMPLETE, f"{recipe.title} 요리 완료", ref_id=cook_log.id
+    )
+    reasons, total = [log.description], log.amount
+    if any(c.imminent for c in consumed):
+        bonus, bonus_level_up = gamification.award_xp(
+            db, user, XpAction.EXPIRY_SAVE_BONUS, "유통기한 내 소진 보너스", ref_id=cook_log.id
+        )
+        reasons.append(bonus.description)
+        total += bonus.amount
+        level_up = level_up or bonus_level_up
+
+    cook_log.xp_awarded = total
+    new_badges = gamification.evaluate_badges(db, user)
+    db.commit()
+    return CookCompleteResponse(
+        cook_log_id=cook_log.id,
+        consumed=consumed,
+        xp=XpGain(amount=total, reasons=reasons, level_up=level_up, new_badges=[b.name for b in new_badges]),
+    )
 
 
 def undo_cooking(db: Session, user: User, cook_log_id: int) -> CookUndoResponse:
-    """요리 완료 실행 취소.
+    """요리 완료 실행 취소 — 재료 복구 + 지급했던 XP 로그 삭제·회수."""
+    cook_log = db.get(CookLog, cook_log_id)
+    if cook_log is None or cook_log.user_id != user.id:
+        raise NotFoundError("요리 기록을 찾을 수 없습니다.")
+    if cook_log.undone_at is not None:
+        raise ConflictError("이미 취소된 요리예요.", code="ALREADY_UNDONE")
 
-    TODO(recipes):
-      1. 본인 CookLog 인지, 이미 취소(undone_at)됐는지 확인
-      2. consumed_snapshot 대로 재료 상태/수량 복구
-      3. 지급했던 XP 회수: award_xp(COOK_UNDO, amount=-cook_log.xp_awarded)
-      4. undone_at = now, commit
-    """
-    raise NotImplementedError("요리 완료 실행 취소 구현 예정")
+    restored = _restore(db, user, cook_log.consumed_snapshot)
+    revoked = gamification.revoke_xp(db, user, COOK_XP_ACTIONS, ref_id=cook_log.id)
+    cook_log.undone_at = now()
+    db.commit()
+    return CookUndoResponse(cook_log_id=cook_log.id, restored_ingredient_ids=restored, xp_revoked=revoked)

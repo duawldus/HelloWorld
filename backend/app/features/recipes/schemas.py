@@ -78,14 +78,15 @@ class RecipeDetail(BaseModel):
 
 class CookCompleteRequest(BaseModel):
     ingredient_ids: list[int] | None = Field(
-        None, description="소진할 내 재료 id. 생략하면 레시피에 매칭된 보유 재료 전부"
+        None, description="소진할 내 재료 id. 생략하면 레시피 재료마다 가장 급한 내 재료를 자동 선택"
     )
 
 
 class ConsumedIngredient(BaseModel):
     ingredient_id: int
     name: str
-    before_expiry: bool
+    before_expiry: bool  # 유통기한 안에 썼는지
+    imminent: bool  # 임박(D-0 ~ D-3) 재료였는지 → 하나라도 있으면 '유통기한 내 소진 보너스'
 
 
 class CookCompleteResponse(BaseModel):

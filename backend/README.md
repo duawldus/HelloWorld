@@ -136,7 +136,7 @@ backend/
 | `vision` | 3-1 사진 촬영, 3-2 인식 결과 | 염지연 | ✅ | 실제 사진 인식 확인 완료 (응답 10~25초). 사진을 더 모아 `needs_review` 기준(0.8) 조정 |
 | `users` | 0 온보딩 · 기본 양념 | 우시연 | ✅ | |
 | `home` | 1 홈 대시보드 | 우시연 | ✅ | |
-| `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절 완료 → **요리 완료(재료 소진 + XP)**, **실행 취소**, AI 프롬프트 튜닝 |
+| `recipes` | 4 레시피 추천, 5 레시피 상세 | 우시연 | 🚧 | 추천·AI 생성·인분 조절·요리 완료·실행 취소 완료 → **`ingredients` 복구 함수 합치기 대기**(실행 취소), AI 프롬프트 튜닝 |
 | `reminders` | 6 생활 알림, 7 알림 추가 | 우시연 | ✅ | 같은 회차 중복 완료 방지 |
 | `gamification` | 8 성과 · 뱃지 | 우시연 | 🚧 | **연속 기록(streak) 갱신**, **뱃지 지급**, 절약 식비 계산 |
 | `notifications` | 9 푸시 알림 | 우시연 | 🚧 | **유통기한/생활 알림 발송 잡** (`jobs.py`), **Expo Push 연동** (`sender.py`) |
@@ -147,7 +147,13 @@ backend/
 
 ### 경계가 겹치는 곳
 
-- `recipes`(우시연)는 냉장고 재료를 `ingredients.list_active()`로 읽기만 해요. 요리 완료 시 재료 소진은 **`ingredients.consume_ingredients(db, user, ids)`**를 쓰세요. (commit은 XP 지급 후 recipes 쪽에서)
+- `recipes`(우시연)는 냉장고 재료를 `ingredients.list_active()`로 읽고, 요리 완료 때 **`ingredients.consume_ingredients(db, user, ids)`**(염지연, 합쳐짐)로 재료를 소진해요. 실행 취소에 쓸 **복구 함수는 아직 없어서** 지금은 501이 나가고, 아래 모양으로 합쳐지면 코드 수정 없이 바로 동작해요.
+  ```python
+  # app/features/ingredients/service.py (염지연)
+  def restore_ingredients(db, user: User, snapshots: list[dict]) -> list[int]:
+      """스냅샷([{"ingredient_id", "name", "expires_on", "prev_quantity", "prev_status"}])대로 status·quantity 복구, consumed_at=None. commit 하지 않음. 복구한 id 반환"""
+  ```
+  합친 뒤에는 `tests/test_cooking.py`의 `fake_restore` 픽스처와 501 테스트를 지우면 돼요.
 - `ingredients`·`vision`(염지연)이 XP를 줄 때는 `gamification.award_xp()`만 호출해요. XP 수치는 우시연이 `rules.py`에서 관리.
 
 ---
@@ -173,8 +179,8 @@ backend/
 | vision | POST | `/vision/recognize` | 사진 → 재료 후보 + 신뢰도 (multipart `image`) | ✅ (튜닝 TODO) |
 | recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족, 부족하면 AI 생성) | ✅ |
 | | GET | `/recipes/{id}?servings=` | 상세 (인분 환산된 재료, 보유/부족/대체재, 조리 순서) | ✅ |
-| | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP | 🚧 |
-| | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 | 🚧 |
+| | POST | `/recipes/{id}/complete` | 요리 완료 → 재료 소진 + XP (임박 재료면 보너스) | ✅ (소진 함수 합치기 전엔 501) |
+| | POST | `/recipes/cook-logs/{id}/undo` | 요리 완료 실행 취소 → 재료 복구 + XP 회수 | ✅ (복구 함수 합치기 전엔 501) |
 | reminders | GET | `/reminders` | 카테고리별 목록 + 다음 알림 | ✅ |
 | | POST | `/reminders` | 알림 추가 | ✅ |
 | | GET / PATCH / DELETE | `/reminders/{id}` | 조회 / 수정·토글 / 삭제 | ✅ |

@@ -9,7 +9,6 @@ class XpAction(StrEnum):
     PHOTO_REGISTER = "PHOTO_REGISTER"  # 사진으로 재료 등록
     INGREDIENT_REGISTER = "INGREDIENT_REGISTER"  # 수동/프리셋 재료 등록
     CHORE_COMPLETE = "CHORE_COMPLETE"  # 생활 알림(집안일) 완료
-    COOK_UNDO = "COOK_UNDO"  # 요리 완료 실행 취소 (XP 회수, 음수)
 
 
 # 와이어프레임 기준: 요리+임박소진 +20, 사진 등록 +15, 집안일 +5

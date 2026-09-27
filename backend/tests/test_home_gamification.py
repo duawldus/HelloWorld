@@ -1,11 +1,6 @@
 API = "/api/v1"
 
 
-def test_todo_endpoints_return_501(client, device_headers):
-    """구현 전 TODO 엔드포인트는 501. 구현하면 이 테스트를 실제 테스트로 교체할 것."""
-    assert client.post(f"{API}/recipes/1/complete", headers=device_headers).status_code == 501
-
-
 def test_home(client, device_headers):
     empty = client.get(f"{API}/home", headers=device_headers).json()
     assert empty["today_recipe"] is None

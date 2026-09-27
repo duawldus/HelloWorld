@@ -4,7 +4,7 @@
    (recipes: 요리 완료, ingredients: 사진 등록, reminders: 집안일 완료)
 """
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.features.gamification.models import Badge, UserBadge, XpLog
@@ -31,6 +31,19 @@ def award_xp(
     user.level = level_for_xp(user.xp)
     touch_streak(db, user)
     return log, user.level > before
+
+
+def revoke_xp(db: Session, user: User, actions: list[XpAction], ref_id: int) -> int:
+    """실행 취소용: ref_id 로 지급했던 XP 로그를 지우고 그만큼 XP를 되돌린다. 회수한 XP를 반환. commit은 호출자가 한다.
+
+    로그 자체를 지우므로 '최근 획득 XP'·'제때 소진' 통계에서도 빠진다.
+    """
+    cond = (XpLog.user_id == user.id, XpLog.ref_id == ref_id, XpLog.action.in_(actions))
+    amount = db.scalar(select(func.coalesce(func.sum(XpLog.amount), 0)).where(*cond)) or 0
+    db.execute(delete(XpLog).where(*cond))
+    user.xp = max(0, user.xp - amount)
+    user.level = level_for_xp(user.xp)
+    return amount
 
 
 def touch_streak(db: Session, user: User) -> None:
