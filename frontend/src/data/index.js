@@ -92,4 +92,5 @@ export {
   withJosa,
   relativeDayLabel,
   summarizeXpLogs,
+  formatXpTitle,
 } from './utils.js'

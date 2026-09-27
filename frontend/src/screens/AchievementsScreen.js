@@ -28,7 +28,7 @@ import {
 import { BackHeader, Screen } from '../components/Screen'
 import { colors } from '../theme/colors'
 
-const RECENT_XP_COUNT = 5
+const RECENT_XP_COUNT = 3 // 와이어프레임처럼 최근 3개만
 
 // 뱃지 코드 → 선 아이콘
 const BADGE_ICONS = {

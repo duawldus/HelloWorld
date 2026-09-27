@@ -57,6 +57,18 @@ export function relativeDayLabel(isoString) {
 }
 
 // ----- XP 기록 -----
+// XP 기록 문구를 화면용으로 바꿉니다. (저장된 문구는 그대로 두고 보여 줄 때만)
+//   '요리 완료: 김치볶음밥' → '김치볶음밥 요리 완료'
+//   '집안일 완료: 분리수거' → '분리수거 완료'
+//   그 밖의 문구('분리수거 완료', '사진으로 재료 3개 등록' 등)는 그대로
+export function formatXpTitle(description) {
+  const cook = description.match(/^요리 완료:\s*(.+)$/)
+  if (cook) return `${cook[1]} 요리 완료`
+  const chore = description.match(/^집안일 완료:\s*(.+)$/)
+  if (chore) return `${chore[1]} 완료`
+  return description
+}
+
 // 최근 XP 기록을 화면에 보여 줄 줄로 묶습니다.
 // '요리 완료' 바로 뒤(1분 안)에 받은 '유통기한 내 소진 보너스'는 한 줄로 합칩니다.
 // 돌려주는 값: [{ id, title: '두부계란찜 요리 완료', reasons: ['유통기한 내 소진 보너스'], amount: 20, created_at }]
@@ -65,7 +77,7 @@ export function summarizeXpLogs(logs) {
     .filter((log) => log.action !== 'EXPIRY_SAVE_BONUS')
     .map((log) => ({
       id: log.id,
-      title: log.description,
+      title: formatXpTitle(log.description),
       reasons: [],
       amount: log.amount,
       created_at: log.created_at,
@@ -81,7 +93,12 @@ export function summarizeXpLogs(logs) {
       cook.reasons.push(bonus.description)
       cook.amount += bonus.amount
     } else {
-      rows.push({ ...bonus, title: bonus.description, reasons: [], action: bonus.action })
+      rows.push({
+        ...bonus,
+        title: formatXpTitle(bonus.description),
+        reasons: [],
+        action: bonus.action,
+      })
     }
   }
   return rows
