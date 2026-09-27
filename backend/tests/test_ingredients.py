@@ -177,3 +177,48 @@ def test_consume_ingredients_public_function(db):
     assert len(consumed) == 2
     assert all(i.status == IngredientStatus.CONSUMED and i.consumed_at for i in consumed)
     assert service.list_active(db, user.id) == []
+
+
+def test_deduct_ingredients(client, device_headers):
+    """수량 차감: 여러 개 한 번에, 0이 되면 소진, 남은 양보다 많이 빼면 남은 양까지만."""
+    egg = client.post(API, json={"name": "계란", "quantity": 10}, headers=device_headers).json()
+    tofu = client.post(API, json={"name": "두부", "quantity": 1}, headers=device_headers).json()
+    milk = client.post(API, json={"name": "우유", "quantity": 1}, headers=device_headers).json()
+
+    res = client.post(
+        f"{API}/deduct",
+        json={
+            "items": [
+                {"id": egg["id"], "amount": 2},
+                {"id": egg["id"], "amount": 1},  # 같은 재료는 합쳐서 3개
+                {"id": tofu["id"], "amount": 1},
+                {"id": milk["id"], "amount": 5},  # 1개밖에 없음
+            ]
+        },
+        headers=device_headers,
+    )
+    assert res.status_code == 200
+    result = {r["name"]: r for r in res.json()["items"]}
+    assert (result["계란"]["amount"], result["계란"]["left"], result["계란"]["status"]) == (3, 7, "ACTIVE")
+    assert (result["두부"]["left"], result["두부"]["status"]) == (0, "CONSUMED")
+    assert (result["우유"]["amount"], result["우유"]["left"]) == (1, 0)
+
+    fridge = client.get(API, headers=device_headers).json()
+    assert [(i["name"], i["quantity"]) for i in fridge["items"]] == [("계란", 7)]
+    assert client.get("/api/v1/gamification/stats", headers=device_headers).json()["xp"] == 0
+
+
+def test_deduct_is_all_or_nothing(client, device_headers):
+    """하나라도 없는 재료면 404이고, 앞의 재료도 줄어들지 않는다."""
+    egg = client.post(API, json={"name": "계란", "quantity": 10}, headers=device_headers).json()
+    res = client.post(
+        f"{API}/deduct",
+        json={"items": [{"id": egg["id"], "amount": 2}, {"id": 9999, "amount": 1}]},
+        headers=device_headers,
+    )
+    assert res.status_code == 404
+    assert client.get(f"{API}/{egg['id']}", headers=device_headers).json()["quantity"] == 10
+
+    bad = client.post(f"{API}/deduct", json={"items": [{"id": egg["id"], "amount": 0}]}, headers=device_headers)
+    assert bad.status_code == 422  # 0 이하는 뺄 수 없음
+    assert client.post(f"{API}/deduct", json={"items": []}, headers=device_headers).status_code == 422

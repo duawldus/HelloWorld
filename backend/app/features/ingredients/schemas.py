@@ -71,3 +71,26 @@ class IngredientListResponse(BaseModel):
 class IngredientBatchResponse(BaseModel):
     items: list[IngredientRead]
     xp: XpGain | None = None
+
+
+class DeductItem(BaseModel):
+    id: int
+    amount: float = Field(gt=0, description="뺄 양 (재료의 단위 기준)")
+
+
+class DeductRequest(BaseModel):
+    """재료 수량 차감. 여러 개를 한 번에 처리하고, 하나라도 실패하면 아무것도 바뀌지 않는다."""
+
+    items: list[DeductItem] = Field(min_length=1, max_length=50)
+
+
+class DeductResult(BaseModel):
+    id: int
+    name: str
+    amount: float  # 실제로 뺀 양 (남은 양보다 많이 빼려고 하면 남은 양까지만)
+    left: float  # 남은 양. 0이면 소진(CONSUMED)되어 냉장고에서 빠짐
+    status: IngredientStatus
+
+
+class DeductResponse(BaseModel):
+    items: list[DeductResult]

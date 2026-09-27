@@ -107,6 +107,39 @@ async function send(path, { method, query, body, form, deviceId }) {
 
 ---
 
+## 3-1. 재료 소진 · 수량 차감 API가 생겼습니다 ✅ (염지연)
+
+| API | 용도 |
+| --- | --- |
+| `POST /ingredients/{id}/consume` | "다 먹었어요" → 소진(`CONSUMED`). `BACKEND_REQUESTS.md` 1번 요청 그대로 |
+| `POST /ingredients/deduct` | 수량 차감. 여러 재료를 **요청 한 번**으로 처리하고, 남은 양이 0이 되면 소진(`CONSUMED`) |
+
+```
+POST /api/v1/ingredients/deduct
+{ "items": [{ "id": 3, "amount": 2 }, { "id": 5, "amount": 1 }] }
+
+→ 200 { "items": [{ "id": 3, "name": "계란", "amount": 2, "left": 8, "status": "ACTIVE" }, ...] }
+```
+
+- XP 없음. 남은 양보다 많이 빼면 남은 양까지만 빼요.
+- 하나라도 없는 재료·남의 재료면 `404`이고 **아무것도 바뀌지 않아요.**
+
+### 프론트 연결 (`frontend/src/data/server/index.js`)
+```js
+export const CAN_CONSUME = true
+export function consumeIngredient(id) {
+  return request(`/ingredients/${id}/consume`, { method: 'POST' })
+}
+
+// 지금은 재료마다 PATCH/DELETE를 보내고, 0이 되면 DELETE(= 폐기로 기록)돼요 → 아래로 바꿔 주세요
+export async function deductIngredients(usedList) {
+  const { items } = await request('/ingredients/deduct', { method: 'POST', body: { items: usedList } })
+  return items // [{ id, name, amount, left, status }] — 기존 모양에 status만 추가
+}
+```
+
+---
+
 ## 4. 백엔드를 새로 받으신 뒤 해 주실 것
 
 테이블 구조가 바뀌어서 **로컬 DB를 한 번 지우고** 서버를 다시 켜 주세요.

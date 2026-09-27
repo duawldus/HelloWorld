@@ -18,6 +18,9 @@ from app.features.ingredients.models import (
     StorageType,
 )
 from app.features.ingredients.schemas import (
+    DeductItem,
+    DeductResponse,
+    DeductResult,
     IngredientBatchResponse,
     IngredientCreate,
     IngredientListResponse,
@@ -220,6 +223,40 @@ def consume_ingredient(db: Session, user: User, ingredient_id: int) -> Ingredien
     (ingredient,) = consume_ingredients(db, user, [ingredient_id])
     db.commit()
     return read_one(db, ingredient)
+
+
+def deduct_ingredients(db: Session, user: User, items: list[DeductItem]) -> list[DeductResult]:
+    """재료 수량을 줄인다. 남은 양이 0이 되면 소진(CONSUMED) 처리. 공개 함수 (XP 없음, commit 안 함).
+
+    같은 재료가 여러 번 오면 양을 합친다. 하나라도 없는 재료면 NotFoundError.
+    """
+    amounts: dict[int, float] = {}
+    for item in items:
+        amounts[item.id] = amounts.get(item.id, 0) + item.amount
+
+    # 먼저 전부 확인한 뒤에 바꾼다 → 중간에 404가 나도 앞의 재료가 줄어든 채로 남지 않음
+    owned = [(get_owned(db, user, ingredient_id), amount) for ingredient_id, amount in amounts.items()]
+
+    results = []
+    for ingredient, amount in owned:
+        used = min(amount, ingredient.quantity)
+        left = round(ingredient.quantity - used, 3)  # 0.1 + 0.2 같은 소수 오차 정리
+        if left <= 0:
+            consume_ingredients(db, user, [ingredient.id])  # 수량은 소진 전 값으로 남겨 둔다
+            left = 0
+        else:
+            ingredient.quantity = left
+        results.append(
+            DeductResult(id=ingredient.id, name=ingredient.name, amount=used, left=left, status=ingredient.status)
+        )
+    return results
+
+
+def deduct(db: Session, user: User, items: list[DeductItem]) -> DeductResponse:
+    """요리 없이 재료 일부만 썼을 때 (예: 계란 10개 중 2개)."""
+    results = deduct_ingredients(db, user, items)
+    db.commit()
+    return DeductResponse(items=results)
 
 
 def delete_ingredient(db: Session, user: User, ingredient_id: int) -> None:

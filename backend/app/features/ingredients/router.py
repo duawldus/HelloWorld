@@ -6,6 +6,8 @@ from app.common.deps import CurrentUser, DbSession
 from app.features.ingredients import service
 from app.features.ingredients.models import RegisterSource, StorageType
 from app.features.ingredients.schemas import (
+    DeductRequest,
+    DeductResponse,
     IngredientBatchCreate,
     IngredientBatchResponse,
     IngredientCreate,
@@ -62,6 +64,15 @@ def get_ingredient(ingredient_id: int, db: DbSession, user: CurrentUser):
 @router.patch("/{ingredient_id}", response_model=IngredientRead)
 def update_ingredient(ingredient_id: int, data: IngredientUpdate, db: DbSession, user: CurrentUser):
     return service.update_ingredient(db, user, ingredient_id, data)
+
+
+@router.post("/deduct", response_model=DeductResponse)
+def deduct_ingredients(data: DeductRequest, db: DbSession, user: CurrentUser):
+    """재료 수량 차감 (여러 개 한 번에, XP 없음). 남은 양이 0이 되면 소진(CONSUMED)으로 냉장고에서 빠진다.
+
+    하나라도 없는 재료·남의 재료면 404이고 아무것도 바뀌지 않는다.
+    """
+    return service.deduct(db, user, data.items)
 
 
 @router.post("/{ingredient_id}/consume", response_model=IngredientRead)

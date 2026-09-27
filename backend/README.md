@@ -169,6 +169,7 @@ backend/
 | | POST | `/ingredients/batch` | 여러 개 일괄 등록 (사진이면 +15 XP) | ✅ |
 | | GET / PATCH / DELETE | `/ingredients/{id}` | 조회 / 수정 / 삭제(폐기, '버렸어요') | ✅ |
 | | POST | `/ingredients/{id}/consume` | 소진 ('다 먹었어요', XP 없음) | ✅ |
+| | POST | `/ingredients/deduct` | 수량 차감 (여러 개 한 번에, 0이 되면 소진, XP 없음) | ✅ |
 | vision | POST | `/vision/recognize` | 사진 → 재료 후보 + 신뢰도 (multipart `image`) | ✅ (튜닝 TODO) |
 | recipes | GET | `/recipes/recommendations` | 추천 (바로 가능 / 1~2개 부족, 부족하면 AI 생성) | ✅ |
 | | GET | `/recipes/{id}?servings=` | 상세 (인분 환산된 재료, 보유/부족/대체재, 조리 순서) | ✅ |
@@ -240,7 +241,7 @@ backend/
   db.scalars(select(Ingredient).where(...))
   ```
 - **XP는 무조건 `gamification.service.award_xp()`로만** 바꿉니다. XP 수치는 `gamification/rules.py` 한 곳에서 관리해요.
-- 현재 공개 함수: `ingredients.list_active`, `ingredients.consume_ingredients`(요리 완료 시 재료 소진), `ingredients.find_preset_by_name`, `users.get_owned_seasoning_names`, `reminders.list_enabled`, `gamification.award_xp` / `evaluate_badges` / `get_level_summary`
+- 현재 공개 함수: `ingredients.list_active`, `ingredients.consume_ingredients`(요리 완료 시 재료 소진), `ingredients.deduct_ingredients`(수량 차감), `ingredients.find_preset_by_name`, `users.get_owned_seasoning_names`, `reminders.list_enabled`, `gamification.award_xp` / `evaluate_badges` / `get_level_summary`
 
 ### 3. 레이어 규칙
 
