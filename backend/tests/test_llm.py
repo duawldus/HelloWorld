@@ -63,3 +63,14 @@ def test_invalid_json_maps_to_llm_error(fake):
 
 def test_recipe_schema_has_no_default_keys():
     assert "default" not in json.dumps(client._schema(GeneratedRecipes))
+
+
+def test_client_retries_server_errors_but_not_rate_limit(monkeypatch):
+    monkeypatch.setattr(client.settings, "GEMINI_API_KEY", "test-key")
+    client._client.cache_clear()
+    try:
+        retry = client._client().interactions.sdk_configuration.retry_config
+    finally:
+        client._client.cache_clear()
+    assert "429" not in retry.status_codes_override
+    assert "503" in retry.status_codes_override

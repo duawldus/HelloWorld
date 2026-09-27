@@ -10,6 +10,7 @@ from functools import lru_cache
 from typing import TypeVar
 
 from google import genai
+from google.genai import types
 from pydantic import BaseModel, ValidationError
 
 from app.common.config import settings
@@ -28,7 +29,13 @@ class LLMError(AppError):
 @lru_cache
 def _client() -> genai.Client:
     # api_key=None 이면 SDK가 환경 변수 GEMINI_API_KEY 에서 자동으로 찾는다
-    return genai.Client(api_key=settings.GEMINI_API_KEY or None)
+    # SDK 기본값은 429 에도 최대 4번 재시도해서, 무료 한도를 더 쓰고 응답이 1~2분씩 늦어진다.
+    # 한도 초과(429)는 바로 LLMError 로 돌려주고, 일시적인 서버 오류(5xx)만 재시도한다.
+    retry = types.HttpRetryOptions(attempts=2, http_status_codes=[500, 502, 503, 504])
+    return genai.Client(
+        api_key=settings.GEMINI_API_KEY or None,
+        http_options=types.HttpOptions(retry_options=retry),
+    )
 
 
 def _schema(model: type[BaseModel]) -> dict:
