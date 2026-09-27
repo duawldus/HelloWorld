@@ -20,7 +20,7 @@ import {
   BookIcon,
   CameraIcon,
   ChefHatIcon,
-  FlameIcon,
+  StreakFlameIcon,
   LeafIcon,
   LockIcon,
   TrophyIcon,
@@ -34,7 +34,7 @@ const RECENT_XP_COUNT = 3 // 와이어프레임처럼 최근 3개만
 const BADGE_ICONS = {
   FRIDGE_CLEANER: LeafIcon,
   HOME_COOK_MASTER: ChefHatIcon,
-  STREAK_7: FlameIcon,
+  STREAK_7: StreakFlameIcon,
   STREAK_30: TrophyIcon,
   RECIPE_20: BookIcon,
   PHOTO_10: CameraIcon,
@@ -108,7 +108,7 @@ function LevelCard({ section }) {
       ) : (
         <>
           <View style={styles.streakPill}>
-            <FlameIcon size={14} color={colors.textSub} />
+            <StreakFlameIcon size={14} color={colors.textSub} />
             <Text style={styles.streakText}>
               {!STREAK_READY
                 ? '연속 기록은 준비 중이에요'

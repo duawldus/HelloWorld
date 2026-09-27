@@ -118,7 +118,8 @@ export function CheckIcon(props) {
 
 // ----- 성과 · 뱃지 -----
 
-export function FlameIcon(props) {
+// 성과 화면의 연속 기록·뱃지용 불꽃 (레시피 화면의 FlameIcon 과 다른 두 겹 모양)
+export function StreakFlameIcon(props) {
   return (
     <Icon size={16} color={colors.textOnPrimary} {...props}>
       <Path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.3 2.3-5.4 3.6-7.3.4 1.6 1.3 2.7 2.4 3.2C11.6 7.6 12.6 5 14.8 3c.3 3.1 3.7 5.7 3.7 10.4 0 4.3-2.8 7.6-6.5 7.6z" />
